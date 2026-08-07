@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key> <string>en</string>
+  <key>CFBundleExecutable</key> <string>Skeleton</string>
+  <key>CFBundlePackageType</key> <string>APPL</string>
+  <key>CFBundleTypeRole</key> <string>None</string>
+  <key>CFBundleIconFile</key> <string>skeleton</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleIconFiles</key> <array>
+    <string>skeleton_16x16.png</string>
+    <string>skeleton_32x32.png</string>
+    <string>skeleton_128x128.png</string>
+    <string>skeleton_256x256.png</string>
+  </array>
+  <key>CFBundleSignature</key> <string>????</string>
+  <key>LSUIElement</key> <true/>
+  <key>RunAtLoad</key> <true/>
+  <key>Label</key> <string>com.gui.io.skeleton</string>
+  <key>ProgramArguments</key> <array> </array>
+  <key>KeepAlive</key> <true/>
+  <key>CSResourcesFileMapped</key> <true/>
+  <key>NSHumanReadableCopyright</key> <string>© 2026 Your Organization</string>
+  <key>NSPrincipalClass</key> <string>NSApplication</string>
+  <key>NSHighResolutionCapable</key> <true/>
+</dict>
+</plist>

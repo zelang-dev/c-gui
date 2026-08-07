@@ -1,0 +1,28 @@
+900 ICON DISCARDABLE "res.ico"
+1 VERSIONINFO FILEVERSION 0,1,0,2026
+PRODUCTVERSION 0,1,0
+FILEOS 0x4
+FILETYPE 0x1
+{
+BLOCK "StringFileInfo"
+{
+    BLOCK "040904E4"
+    {
+        VALUE "CompanyName", " Your Organization\0"
+        VALUE "FileDescription", "Simple starter `GUI` skeleton App!\0"
+        VALUE "FileVersion", "0.1.0.2026\0"
+        VALUE "ProductName", "skeleton\0"
+        VALUE "InternalName", "100\0"
+        VALUE "LegalCopyright", "(c) By You\0"
+        VALUE "OriginalFilename", "skeleton.exe\0"
+        VALUE "ProductVersion", "0.1.0\0"
+    }
+}
+
+BLOCK "VarFileInfo"
+{
+    VALUE "Translation", 0x0409 0x04E4
+}
+}
+
+2 24 "Application.manifest"
