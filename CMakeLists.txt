@@ -202,7 +202,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
 	DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}" )
 
 if(NOT EXISTS "${CMAKE_SOURCE_DIR}/resources")
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources ${CMAKE_SOURCE_DIR}/resources)
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources DESTINATION ${CMAKE_SOURCE_DIR})
 endif()
 
 add_subdirectory(resources)
