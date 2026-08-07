@@ -3,7 +3,7 @@
 FindGui
 ------------
 
-Find the Gui - dual webclient/server processor.
+Find the Gui - Cross-platform **C** `GUI` library.
 
 Imported Targets
 ^^^^^^^^^^^^^^^^
