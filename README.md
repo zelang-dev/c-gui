@@ -37,8 +37,19 @@ The same **skeleton app** overhauled to include most **Apple macOS API** automat
 
 ## Usage/installation
 
-[CMake](https://cmake.org) `FetchContent` and `find_package` is use here to setup your project `App`. Your **WILL** need to *modify* every *file* in [resources](./resources/) folder. The folder will be created in your *root directory* if it doesn't exist.
+[CMake](https://cmake.org) `FetchContent` and `find_package` is use here to setup your project `App`. Your **WILL** need to *modify* every *file* in [resources](./resources/) folder. The folder will be created in your *root directory* if it doesn't exist. This project started out inside **repo** [Httpi](https://github.com/zelang-dev/httpi), all prior commits are there. This is provided as *quick way* to *reproduce* an *GUI* `App` with little effort.
 
-```shell
-
+```sh
+find_package(gui QUIET CONFIG)
+if(NOT gui_FOUND)
+    FetchContent_Declare(gui
+        URL https://github.com/zelang-dev/c-gui/archive/refs/heads/main.zip
+        #URL https://github.com/zelang-dev/c-gui/archive/refs/tags/v0.0.1.zip
+        #URL_MD5 6e9756dee0ef5903d850dc021d5df725
+    )
+    FetchContent_MakeAvailable(gui)
+endif()
+target_include_directories(your_project
+ PRIVATE $<BUILD_INTERFACE:${GUI_INCLUDE_DIR} $<INSTALL_INTERFACE:${GUI_INCLUDE_DIR})
+target_link_libraries(your_project PUBLIC GUI::MINI)
 ```

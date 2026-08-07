@@ -2,8 +2,8 @@
 static volatile gui_info *main_gui_info = NULL;
 static volatile bool main_gui_shutdown = false;
 
-#if defined(__linux__) && !defined(X11_WINDOWS_ICON)
-#define X11_WINDOWS_ICON "../resources/icon_32x32.xpm"
+#if defined(__linux__) && !defined(X11_WINDOW_ICON)
+#define X11_WINDOW_ICON "../resources/icon_32x32.xpm"
 #endif
 
 #if defined(__linux__) || defined(_WIN32_)
@@ -1960,8 +1960,8 @@ int gui_handler(gui_info *ui) {
 }
 #else
 // window icon
-#include X11_WINDOWS_ICON
-static char *Xt_menu_seperator = " _____ ";
+#include X11_WINDOW_ICON
+static char *Xt_menu_seperator = " ----- ";
 static char *fallback[] = {
   "*variablewidth*font: -adobe-helvetica-medium-r-normal--*-120-*",
   "*monospaced*font: -*-courier-medium-r-*-*-14-*-*-*-*-*-*",
@@ -1988,7 +1988,7 @@ static char *fallback[] = {
 #define close_menu 3
 #define run_command 4
 #define left_menu_padding 10
-#define top_menu_padding 0.2
+#define top_menu_padding 0.1
 
 struct Dimensions {
 	//window
