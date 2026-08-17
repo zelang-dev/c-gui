@@ -178,19 +178,12 @@ _XFUNCPROTOBEGIN
  *      NOTE:      If nitems of longest are <= 0 then they will be caluculated.
  *                 If nitems is <= 0 then the list needs to be NULL terminated.
  */
-
 extern void XawListChange(
-#if NeedFunctionPrototypes
     Widget		/* w */,
     String*		/* list */,
     int			/* nitems */,
     int			/* longest */,
-#if NeedWidePrototypes
-    /* Boolean */ int	/* resize */
-#else
     Boolean		/* resize */
-#endif
-#endif
 );
 
 /*	Function Name: XawListUnhighlight
@@ -198,11 +191,8 @@ extern void XawListChange(
  *	Arguments: w - the widget.
  *	Returns: none.
  */
-
 extern void XawListUnhighlight(
-#if NeedFunctionPrototypes
     Widget		/* w */
-#endif
 );
 
 /*	Function Name: XawListHighlight
@@ -211,12 +201,9 @@ extern void XawListUnhighlight(
  *                 item - the item to highlight.
  *	Returns: none.
  */
-
 extern void XawListHighlight(
-#if NeedFunctionPrototypes
     Widget		/* w */,
     int			/* item */
-#endif
 );
 
 
@@ -225,11 +212,8 @@ extern void XawListHighlight(
  *	Arguments: w - the list widget.
  *	Returns: the info about the currently highlighted object.
  */
-
 extern XawListReturnStruct * XawListShowCurrent(
-#if NeedFunctionPrototypes
     Widget		/* w */
-#endif
 );
 
 _XFUNCPROTOEND

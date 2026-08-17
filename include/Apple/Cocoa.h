@@ -15,6 +15,15 @@
 #include <objc/NSObjCRuntime.h>
 #include <objc/objc-runtime.h>
 #include <objc/objc.h>
+#include <limits.h>
+
+struct webview_priv {
+	id pool;
+	id window;
+	id webview;
+	id windowDelegate;
+	int should_exit;
+};
 
 typedef enum {
 	NSApplicationActivationPolicyRegular = 0,

@@ -45,6 +45,7 @@ in this Software without prior written authorization from the X Consortium.
 #include <X11/Xmu/Drawing.h>
 
 #include <Linux/Xaw95/XawInit.h>
+#include <Linux/Xaw95/TraversalP.h>
 #include <Linux/Xaw95/ListP.h>
 
 /* These added so widget knows whether its height, width are user selected.
@@ -155,7 +156,7 @@ ListClassRec listClassRec = {
     /* set_values_hook		*/	NULL,
     /* set_values_almost	*/	XtInheritSetValuesAlmost,
     /* get_values_hook		*/	NULL,
-    /* accept_focus	 	*/	NULL,
+	/* accept_focus	 	*/	XawAcceptFocus,
     /* version			*/	XtVersion,
     /* callback_private   	*/	NULL,
     /* tm_table		   	*/	defaultTranslations,
@@ -1076,23 +1077,8 @@ static void Destroy(w)
  *      NOTE:      If nitems of longest are <= 0 then they will be calculated.
  *                 If nitems is <= 0 then the list needs to be NULL terminated.
  */
-
-void
-#if NeedFunctionPrototypes
-XawListChange(Widget w, char ** list, int nitems, int longest,
-#if NeedWidePrototypes
-	      int resize_it)
-#else
-	      Boolean resize_it)
-#endif
-#else
-XawListChange(w, list, nitems, longest, resize_it)
-Widget w;
-char ** list;
-int nitems, longest;
-Boolean resize_it;
-#endif
-{
+void XawListChange(Widget w, String *list, int nitems,
+	int longest, Boolean resize_it) {
     ListWidget lw = (ListWidget) w;
     Dimension new_width = w->core.width;
     Dimension new_height = w->core.height;
@@ -1131,15 +1117,7 @@ Boolean resize_it;
  *	Arguments: w - the widget.
  *	Returns: none.
  */
-
-void
-#if NeedFunctionPrototypes
-XawListUnhighlight(Widget w)
-#else
-XawListUnhighlight(w)
-Widget w;
-#endif
-{
+void XawListUnhighlight(Widget w) {
     ListWidget lw = ( ListWidget ) w;
 
     lw->list.highlight = NO_HIGHLIGHT;
@@ -1153,16 +1131,7 @@ Widget w;
  *                 item - the item to hightlight.
  *	Returns: none.
  */
-
-void
-#if NeedFunctionPrototypes
-XawListHighlight(Widget w, int item)
-#else
-XawListHighlight(w, item)
-Widget w;
-int item;
-#endif
-{
+void XawListHighlight(Widget w, int item) {
     ListWidget lw = ( ListWidget ) w;
 
     if (XtIsSensitive(w)) {
@@ -1178,15 +1147,7 @@ int item;
  *	Arguments: w - the list widget.
  *	Returns: the info about the currently highlighted object.
  */
-
-XawListReturnStruct *
-#if NeedFunctionPrototypes
-XawListShowCurrent(Widget w)
-#else
-XawListShowCurrent(w)
-Widget w;
-#endif
-{
+XawListReturnStruct *XawListShowCurrent(Widget w) {
     ListWidget lw = ( ListWidget ) w;
     XawListReturnStruct * ret_val;
 

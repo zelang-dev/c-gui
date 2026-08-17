@@ -28,6 +28,6 @@ in this Software without prior written authorization from the X Consortium.
 
 _XFUNCPROTOBEGIN
 
-extern void XawInitializeWidgetSet();	/* called from ClassInit procs */
+extern void XawInitializeWidgetSet(void);	/* called from ClassInit procs */
 
 _XFUNCPROTOEND

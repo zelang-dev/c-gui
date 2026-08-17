@@ -38,12 +38,11 @@ in this Software without prior written authorization from the X Consortium.
 #include <X11/Vendor.h>
 #include <Linux/Xaw95/XawInit.h>
 
-void XawInitializeWidgetSet ()
-{
-    static int firsttime = 1;
+void XawInitializeWidgetSet(void) {
+	static int firsttime = 1;
 
-    if (firsttime) {
-	firsttime = 0;
-	XtInitializeWidgetClass (vendorShellWidgetClass);
-    }
+	if (firsttime) {
+		firsttime = 0;
+		XtInitializeWidgetClass(vendorShellWidgetClass);
+	}
 }

@@ -32,6 +32,7 @@ in this Software without prior written authorization from the X Consortium.
 #include <X11/Xmu/CharSet.h>		/* for XmuCompareISOLatin1() */
 #include <Linux/Xaw95/XawInit.h>		/* for XawInitializeWidgetSet */
 #include <Linux/Xaw95/PannerP.h>		/* us */
+#include <Linux/Xaw95/TraversalP.h>		/* us */
 #include <X11/Xos.h>
 #include <X11/Xmu/Misc.h>		/* for Min */
 #include <X11/Xmu/Drawing.h>
@@ -162,7 +163,7 @@ PannerClassRec pannerClassRec = {
     /* set_values_hook		*/	NULL,
     /* set_values_almost	*/	SetValuesAlmost,
     /* get_values_hook		*/	NULL,
-    /* accept_focus		*/	NULL,
+	/* accept_focus		*/	XawAcceptFocus,
     /* version			*/	XtVersion,
     /* callback_private		*/	NULL,
     /* tm_table			*/	defaultTranslations,

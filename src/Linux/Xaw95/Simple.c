@@ -1,4 +1,8 @@
-/* $XConsortium: Simple.c,v 1.36 94/04/17 20:12:43 kaleb Exp $ */
+/*
+ * $Id: Simple.c,v 1.3 2000/08/31 17:09:08 falk Exp $
+ * Based on Xaw3d v1.3
+ * $XConsortium: Simple.c,v 1.36 94/04/17 20:12:43 kaleb Exp $
+ */
 
 /***********************************************************
 
@@ -53,7 +57,10 @@ SOFTWARE.
 #include <X11/StringDefs.h>
 #include <Linux/Xaw95/XawInit.h>
 #include <Linux/Xaw95/SimpleP.h>
+#include <Linux/Xaw95/TraversalP.h>
 #include <X11/Xmu/Drawing.h>
+
+#include <Linux/Xaw95/XawAlloc.h>
 
 #define offset(field) XtOffsetOf(SimpleRec, simple.field)
 
@@ -70,10 +77,27 @@ static XtResource resources[] = {
      offset(cursor_name), XtRString, NULL},
   {XtNinternational, XtCInternational, XtRBoolean, sizeof(Boolean),
      offset(international), XtRImmediate, (XtPointer) FALSE},
+  {XtNtraversalOn, XtCTraversalOn, XtRBoolean, sizeof(Boolean),
+     offset(traversalOn), XtRImmediate, (XtPointer) TRUE},
 #undef offset
 };
 
+static	XtActionsRec	actionsList[] = {
+  {"FocusNext", XawFocusNextAction},
+  {"FocusPrevious", XawFocusPreviousAction},
+  {"FocusHome", XawFocusHomeAction},
+  {"FocusEnd", XawFocusEndAction},
+  {"FocusNextGroup", XawFocusNextGroupAction},
+  {"FocusPreviousGroup", XawFocusPreviousGroupAction},
+  {"FocusHomeGroup", XawFocusHomeGroupAction},
+  {"FocusEndGroup", XawFocusEndGroupAction},
+  {"FocusTake", XawFocusTakeAction},
+  {"FocusEnterWindow", XawFocusEnterWindowAction},
+  {"FocusLeaveWindow", XawFocusLeaveWindowAction}
+} ;
+
 static void ClassPartInitialize(), ClassInitialize(),Realize(),ConvertCursor();
+static void Initialize() ;
 static Boolean SetValues(), ChangeSensitive();
 
 SimpleClassRec simpleClassRec = {
@@ -84,11 +108,11 @@ SimpleClassRec simpleClassRec = {
     /* class_initialize		*/	ClassInitialize,
     /* class_part_initialize	*/	ClassPartInitialize,
     /* class_inited		*/	FALSE,
-    /* initialize		*/	NULL,
+    /* initialize		*/	Initialize,
     /* initialize_hook		*/	NULL,
     /* realize			*/	Realize,
-    /* actions			*/	NULL,
-    /* num_actions		*/	0,
+    /* actions			*/	actionsList,
+    /* num_actions		*/	XtNumber(actionsList),
     /* resources		*/	resources,
     /* num_resources		*/	XtNumber(resources),
     /* xrm_class		*/	NULLQUARK,
@@ -145,17 +169,32 @@ static void ClassPartInitialize(class)
 
     if (c->simple_class.change_sensitive == NULL) {
 	char buf[BUFSIZ];
+	char *pbuf;
+	char *msg1 = " Widget: The Simple Widget class method 'change_sensitive' is undefined.\nA function must be defined or inherited.";
+	int len;
 
-	(void) sprintf(buf,
-		"%s Widget: The Simple Widget class method 'change_sensitive' is undefined.\nA function must be defined or inherited.",
-		c->core_class.class_name);
-	XtWarning(buf);
+	len = strlen(msg1) + strlen(c->core_class.class_name) + 1;
+	pbuf = XtStackAlloc(len, buf);
+	if( pbuf != NULL ) {
+	    sprintf(pbuf, "%s%s", c->core_class.class_name, msg1);
+	    XtWarning(pbuf);
+	    XtStackFree(pbuf, buf);
+	}
 	c->simple_class.change_sensitive = ChangeSensitive;
     }
 
     if (c->simple_class.change_sensitive == XtInheritChangeSensitive)
 	c->simple_class.change_sensitive = super->simple_class.change_sensitive;
 }
+
+static	void Initialize(request, new, args, num_args)
+    Widget request, new ;
+    ArgList args ;
+    Cardinal *num_args ;
+{
+    XawTraversalInit(new) ;
+}
+
 
 static void Realize(w, valueMask, attributes)
     Widget w;

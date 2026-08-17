@@ -1,4 +1,8 @@
-/* $XConsortium: XawIm.c,v 1.6 95/01/20 16:17:21 kaleb Exp $ */
+/*
+ * $Id: XawIm.c,v 1.2 1999/12/15 19:03:54 falk Exp $
+ * Based on Xaw3d v1.5
+ * $XConsortium: XawIm.c,v 1.6 95/01/20 16:17:21 kaleb Exp $
+ */
 
 /*
  * Copyright 1991 by OMRON Corporation
@@ -224,22 +228,6 @@ static XIMStyle GetInputStyleOfIC( ve )
     return(ve->ic.input_style);
 }
 
-static XIMStyle GetInputStyleOfIM( p )
-    String	p;
-{
-    if (!p || !*p)
-	return((XIMStyle)0);
-    if (!strcmp(p, "OverTheSpot")) {
-	return((XIMPreeditPosition | XIMStatusArea));
-    } else if (!strcmp(p, "OffTheSpot")) {
-	return((XIMPreeditArea | XIMStatusArea));
-    } else if (!strcmp(p, "Root")) {
-	return((XIMPreeditNothing | XIMStatusNothing));
-    } else {
-	return((XIMStyle)0);
-    }
-}
-
 static void ConfigureCB( w, closure, event )
     Widget	w;
     XtPointer	closure;
@@ -377,20 +365,12 @@ static void FreeAllDataOfVendorShell(ve, vw)
 	if (contextErrData) XtFree((char *)contextErrData);
     }
     XDeleteContext(XtDisplay(vw), (Window)vw, extContext);
-    if (ve->im.im_list) {
-        XtFree((char *)ve->im.im_list[0]);
-        XtFree((char *)ve->im.im_list);
-    }
-    if (ve->ic.ic_list) {
-        XtFree((char *)ve->ic.ic_list[0]);
-        XtFree((char *)ve->ic.ic_list);
-    }
     if (ve->ic.shared_ic_table)
         XtFree((char *)ve->ic.shared_ic_table);
     if (ve->im.resources) XtFree((char *)ve->im.resources);
     for (p = ve->ic.ic_table; p; p = next) {
         next = p->next;
-        XtFree((char *)ve->ic.ic_table);
+        XtFree((char *)p);
     }
 }
 
@@ -413,25 +393,48 @@ static void VendorShellDestroyed( w, cl_data, ca_data )
 static void OpenIM(ve)
     XawVendorShellExtPart * ve;
 {
-    char	*p, modifiers[32];
+    int		i;
+    char	*p, *s, *ns, *end, *pbuf, buf[32];
     XIM		xim = NULL;
     XIMStyles	*xim_styles;
-    XIMStyle	input_style;
-    int		i, j;
+    XIMStyle	input_style = 0;
+    Boolean	found;
 
     if (ve->im.open_im == False) return;
     ve->im.xim = NULL;
-    if (ve->im.im_list_num <= 0) {
+    if (ve->im.input_method == NULL) {
 	if ((p = XSetLocaleModifiers("@im=none")) != NULL && *p)
 	    xim = XOpenIM(XtDisplay(ve->parent), NULL, NULL, NULL);
     } else {
-	for (i = 0; i < ve->im.im_list_num; i++) {
-	    strcpy(modifiers, "@im=");
-	    strcat(modifiers, ve->im.im_list[i]);
-	    if ((p = XSetLocaleModifiers(modifiers)) != NULL && *p &&
-		(xim = XOpenIM(XtDisplay(ve->parent), NULL, NULL, NULL)) != NULL)
+	/* no fragment can be longer than the whole string */
+	int	len = strlen (ve->im.input_method) + 5;
+
+	if (len < sizeof buf) pbuf = buf;
+	else pbuf = XtMalloc (len);
+
+	if (pbuf == NULL) return;
+
+	for(ns=s=ve->im.input_method; ns && *s;) {
+	    /* skip any leading blanks */
+	    while (*s && isspace(*s)) s++;
+	    if (!*s) break;
+	    if ((ns = end = strchr(s, ',')) == NULL)
+		end = s + strlen(s);
+	    /* strip any trailing blanks */
+	    while (isspace(*end)) end--;
+
+	    strcpy (pbuf, "@im=");
+	    strncat (pbuf, s, end - s);
+	    pbuf[end - s + 4] = '\0';
+
+	    if ((p = XSetLocaleModifiers(pbuf)) != NULL && *p
+		&& (xim = XOpenIM(XtDisplay(ve->parent), NULL, NULL, NULL)) != NULL)
 		break;
+
+	    s = ns + 1;
 	}
+
+	if (pbuf != buf) XtFree (pbuf);
     }
     if (xim == NULL) {
 	if ((p = XSetLocaleModifiers("")) != NULL) {
@@ -450,24 +453,39 @@ static void OpenIM(ve)
 	XCloseIM(xim);
 	return;
     }
-    for (j = 0; j < ve->ic.ic_list_num; j++) {
-	input_style = GetInputStyleOfIM(ve->ic.ic_list[j]);
-	if (input_style == (XIMStyle)0) continue;
-	for (i = 0; (unsigned short)i < xim_styles->count_styles; i++) {
+    found = False;
+    for(ns = s = ve->im.preedit_type; s && !found;) {
+	while (*s && isspace(*s)) s++;
+	if (!*s) break;
+	if ((ns = end = strchr(s, ',')) == NULL)
+	    end = s + strlen(s);
+	while (isspace(*end)) end--;
+
+	if (!strncmp(s, "OverTheSpot", end - s)) {
+	    input_style = (XIMPreeditPosition | XIMStatusArea);
+	} else if (!strncmp(s, "OffTheSpot", end - s)) {
+	    input_style = (XIMPreeditArea | XIMStatusArea);
+	} else if (!strncmp(s, "Root", end - s)) {
+	    input_style = (XIMPreeditNothing | XIMStatusNothing);
+	}
+	for (i = 0; (unsigned short)i < xim_styles->count_styles; i++)
 	    if (input_style == xim_styles->supported_styles[i]) {
 		ve->ic.input_style = input_style;
 		SetErrCnxt(ve->parent, xim);
-/*		_XipSetIOErrorHandler(IOErrorHandler); */
 		ve->im.xim = xim;
-		XFree(xim_styles);
-		return;
+		found = True;
+		break;
 	    }
-	}
+
+	s = ns + 1;
     }
-    XCloseIM(xim);
-    XtAppWarning(XtWidgetToApplicationContext(ve->parent),
-	"input method doesn't support my input style");
     XFree(xim_styles);
+
+    if (!found) {
+	XCloseIM(xim);
+	XtAppWarning(XtWidgetToApplicationContext(ve->parent),
+		     "input method doesn't support my input style");
+    }
 }
 
 static Boolean ResizeVendorShell_Core(vw, ve, p)
@@ -1313,48 +1331,6 @@ static void CompileResourceList( res, num_res )
 #undef xrmres
 }
 
-
-static char** ParseIMNameList(p, num)
-    char* p;
-    int* num;
-{
-    char	*s, *save_s, *ss, *list[32], **lp, *end;
-    int		i = 0;
-
-    *num = 0;
-    if (!p || !*p) return ((char **)NULL);
-    while (*p && isspace(*p)) p++;
-    if (!*p) return ((char **)NULL);
-    if ((s = XtMalloc(strlen(p) + 1)) == NULL) return((char **)NULL);
-    strcpy(s, p);
-    save_s = s;
-
-    while(1) {
-	list[i] = s;
-	ss = index(s, ',');
-	if (!ss) {
-	    end = s + strlen(s);
-	} else {
-	    end = ss;
-	}
-	while (isspace(*end)) end--;
-	*end = '\0';
-	i++;
-	if (!ss) break;
-	s = ss + 1;
-	while (*s && isspace(*s)) p++;
-	if (!*s) break;
-    }
-    if ((lp = (char **)XtMalloc(sizeof(char *) * (i + 1))) == NULL) {
-	XtFree(save_s);
-	return((char **)NULL);
-    }
-    memcpy((char *)lp, (char *)list, sizeof(char *) * i);
-    *(lp + i) = NULL;
-    *num = i;
-    return(lp);
-}
-
 static Boolean Initialize( vw, ve )
     VendorShellWidget vw;
     XawVendorShellExtPart* ve;
@@ -1375,10 +1351,6 @@ static Boolean Initialize( vw, ve )
 	return(FALSE);
     ve->ic.current_ic_table = NULL;
     ve->ic.ic_table = NULL;
-    ve->im.im_list = ParseIMNameList(ve->im.input_method, &i);
-    ve->im.im_list_num = i;
-    ve->ic.ic_list = ParseIMNameList(ve->im.preedit_type, &i);
-    ve->ic.ic_list_num = i;
     return(TRUE);
 }
 

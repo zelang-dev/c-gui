@@ -9,13 +9,13 @@ Copyright 1992 by Kaleb Keithley
 
                         All Rights Reserved
 
-Permission to use, copy, modify, and distribute this software and its 
-documentation for any purpose and without fee is hereby granted, 
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
 provided that the above copyright notice appear in all copies and that
-both that copyright notice and this permission notice appear in 
+both that copyright notice and this permission notice appear in
 supporting documentation, and that the names of Digital, MIT, or Kaleb
-Keithley not be used in advertising or publicity pertaining to distribution 
-of the software without specific, written prior permission.  
+Keithley not be used in advertising or publicity pertaining to distribution
+of the software without specific, written prior permission.
 
 DIGITAL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
 ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
@@ -80,17 +80,13 @@ extern WidgetClass threeDWidgetClass;
 _XFUNCPROTOBEGIN
 
 extern void Xaw3dComputeTopShadowRGB (
-#if NeedFunctionPrototypes
     Widget 		/* new */,
     XColor*		/* xcol_out */
-#endif
 );
 
 extern void Xaw3dComputeBottomShadowRGB (
-#if NeedFunctionPrototypes
     Widget		/* new */,
     XColor*		/* xcol_out */
-#endif
 );
 
 _XFUNCPROTOEND

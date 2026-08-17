@@ -11,6 +11,8 @@ This started out first on **Linux** with no prior understanding of X11 programmi
 
 * Began with a simplier menu layout derived from [X11 Menus (how to)](https://www.linuxquestions.org/questions/programming-9/x11-menus-how-to-839904/), the source for `OpenGL` dependency.
 * Switched to an alterative [Athena Widgets/Xaw implementations](https://forums.freebsd.org/threads/athena-widgets-xaw-implementations.81588/) toolkit, parts of this *library* includes various aspects of [Survey of Widget Sets](http://www.efalk.org/Widgets/).
+* To my discovery there is a project [Mowitz](https://github.com/UlricE/Mowitz) that has all basic **GUI** *aesthetic* features for Linux covered. This includes a native [WebView](https://en.wikipedia.org/wiki/WebView) widget implementation. It's [Kylie](https://siag.nu/kylie/), *very buggy, leaks, only **http**,* but is a starting point for **NO GTK** needed, **PR's are welcome**. More work is required to bring it up to standards. Currently, the **kylie** *application* has been striped back down to a *reusable* widget only.
+* This project embeds a modified version of the [webview-c](https://github.com/javalikescript/webview-c), the examples has been tested working as expected on **Windows** and **macOS** only.
 
 ## Windows
 
@@ -18,6 +20,7 @@ After getting a basic functional **Linux** startup running under `WSL2`. The sam
 
 * I followed the [theForger's Win32 API Programming Tutorial](https://winprog.org/tutorial/).
 * And [Windows API tutorial](https://zetcode.com/gui/winapi/).
+* [WebView2](https://learn.microsoft.com/en-us/microsoft-edge/webview2/) is now supported and included by default.
 
 ## Apple macOS
 
@@ -35,7 +38,7 @@ The same **skeleton app** overhauled to include most **Apple macOS API** automat
 > NOTE: The **Linux** and **Windows** API will always need refactoring to match **Apple** behavior. The **skeleton app** *should have no platform specific code*. **Linux** will be the most challenging part without resorting to **GTK**, **Qt**. I have *no direct* plans to add, **PR** are welcome.
 > This should be must *lighter* and *easier* to follow than something like [Cross-Platform C SDK - NAppGUI](https://github.com/frang75/nappgui_src).
 
-## Usage/installation
+## installation
 
 [CMake](https://cmake.org) `FetchContent` and `find_package` is use here to setup your project `App`. Your **WILL** need to *modify* every *file* in [resources](./resources/) folder. The folder will be created in your *root directory* if it doesn't exist. This project started out inside **repo** [Httpi](https://github.com/zelang-dev/httpi), all prior commits are there. This is provided as *quick way* to *reproduce* an *GUI* `App` with little effort.
 
@@ -53,3 +56,5 @@ target_include_directories(your_project
  PRIVATE $<BUILD_INTERFACE:${GUI_INCLUDE_DIR} $<INSTALL_INTERFACE:${GUI_INCLUDE_DIR})
 target_link_libraries(your_project PUBLIC GUI::MINI)
 ```
+
+### Usage

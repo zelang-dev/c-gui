@@ -1,5 +1,5 @@
 # The executable
-set(SUB_PROJECT_APP gui_skeleton)
+set(SUB_PROJECT_APP skeleton_app)
 
 if(APPLE)
 	file(GLOB SKELETON_RES ${CMAKE_CURRENT_SOURCE_DIR}/skeleton*.*)
@@ -42,8 +42,14 @@ if(APPLE)
 		INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 	)
 else()
+	if(WIN32)
+		set(EXPORTER ${PROJECT_NAME} ${SUB_PROJECT_APP})
+	else()
+		set(EXPORTER ${PROJECT_NAME} ${SUB_PROJECT_APP} Xaw95 mowitz)
+		message("-- Linux: Default installation for `fonts, xpm` and other required files: \n${CMAKE_INSTALL_FULL_DATAROOTDIR}")
+	endif(WIN32)
 	install(
-		TARGETS ${PROJECT_NAME} ${SUB_PROJECT_APP}
+		TARGETS ${EXPORTER}
 		EXPORT "${PROJECT_NAME}Targets"
 		ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

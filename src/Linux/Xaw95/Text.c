@@ -64,6 +64,7 @@ SOFTWARE.
 #include <Linux/Xaw95/XawInit.h>
 #include <Linux/Xaw95/Cardinals.h>
 #include <Linux/Xaw95/Scrollbar.h>
+#include <Linux/Xaw95/TraversalP.h>
 #include <Linux/Xaw95/TextP.h>
 #include <Linux/Xaw95/MultiSinkP.h>
 #include <Linux/Xaw95/XawImP.h>
@@ -3662,7 +3663,7 @@ TextClassRec textClassRec = {
     /* set_values_hook  */	NULL,
     /* set_values_almost*/	XtInheritSetValuesAlmost,
     /* get_values_hook  */	GetValuesHook,
-    /* accept_focus     */      NULL,
+	/* accept_focus     */      XawAcceptFocus,
     /* version          */	XtVersion,
     /* callback_private */      NULL,
     /* tm_table         */      NULL,    /* set in ClassInitialize */

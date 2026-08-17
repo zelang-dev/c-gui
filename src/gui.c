@@ -14,7 +14,13 @@ FORCEINLINE size_t str_length(ui_form_t field) {
 #if __APPLE__
 	return cocoa_strlen((NSString)cocoa_send((id)field, "stringValue"));
 #elif defined(__linux__)
-	return strlen(TextFieldGetString(field));
+	size_t len = 0;
+	String value = TextFieldGetString(field);
+	if (value) {
+		len = strlen(value);
+		free(value);
+	}
+	return len;
 #else
 	return GetWindowTextLength(field);
 #endif
@@ -500,6 +506,12 @@ static BOOL AppDel_didFinishLaunching(AppDelegate *self, SEL selector, id data) 
 	cocoa_set_with(NSApp, "setServicesMenu:",
 		cocoa_send_with(cocoa_alloc("NSMenu"), "initWithTitle:", (id)cocoa_str("Services")));
 
+	/* services */
+	//NSMenu *serviceMenu = cocoa_send_with(cocoa_get("NSMenu", "alloc"), "initWithTitle:", cocoa_str(""));
+	//NSMenuItem *serviceMenuItem = cocoa_menuitem_action(appMenu, nil, "Services", nil, "", nil);
+	//cocoa_set_with(serviceMenuItem, "setSubmenu:", serviceMenu);
+	//cocoa_set_with(NSApp, "setServicesMenu:", serviceMenu);
+
 	id appMenu = cocoa_send(cocoa_new("NSMenu"), "autorelease");
 	id appName = cocoa_send(cocoa_get("NSProcessInfo", "processInfo"), "processName");
 	cocoa_menuitem(appMenu, appName, "About ", "orderFrontStandardAboutPanel:", "");
@@ -777,7 +789,7 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 	cocoa_set(ui->statusLine, "setSelectable:", NO);
 	cocoa_set(ui->statusLine, "setDrawsBackground:", NO);
 	cocoa_set_with(ui->statusLine, "setFont:", (id)ui->font);
-	cocoa_set_with(ui->statusLine, "setStringValue:", (id)cocoa_str("Fill out form"));
+	cocoa_set_with(ui->statusLine, "setStringValue:", (id)cocoa_str("Fill out"));
 	cocoa_postpairwith_func(cocoa_send(ui->wnd, "contentView"),
 		sel_getUid("addSubview:positioned:relativeTo:"), ui->statusLine, NSWindowBelow, nil);
 
@@ -1561,7 +1573,8 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 	windows_form_button(ui, "Confirm", ID_GUI_CONFIRM, 130, (ui->height - 83));
 	windows_form_button(ui, "Cancel", ID_GUI_CANCEL, 215, (ui->height - 83));
 
-	hEdit = CreateWindow(STATUSCLASSNAME, "", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+	/* Setup statusline area in form for `error` feedback*/
+	hEdit = CreateWindow(STATUSCLASSNAME, "Fill out", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
 		0, ui->height, (ui->width), 5, ui->wnd, (HMENU)ID_GUI_STATUS, NULL, NULL);
 	SendMessage(hEdit, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
 
@@ -1961,14 +1974,55 @@ int gui_handler(gui_info *ui) {
 #else
 // window icon
 #include X11_WINDOW_ICON
-static char *Xt_menu_seperator = " ----- ";
+static char *Xt_menu_seperator = " ------ ";
 static char *fallback[] = {
-  "*variablewidth*font: -adobe-helvetica-medium-r-normal--*-120-*",
-  "*monospaced*font: -*-courier-medium-r-*-*-14-*-*-*-*-*-*",
-  "*sans-serif*font: -*-helvetica-medium-r-*-*-12-*-*-*-*-*-*",
-  "*serif*font: -*-times-medium-r-*-*-12-*-*-*-*-*-*",
-  "<Message>WM_PROTOCOLS: WMProtocols()\n",
-  NULL
+	"*variablewidth*font: -adobe-helvetica-medium-r-normal--*-120-*",
+	"*monospaced*font: -*-courier-medium-r-*-*-14-*-*-*-*-*-*",
+	"*sans-serif*font: -*-helvetica-medium-r-*-*-12-*-*-*-*-*-*",
+	"*serif*font: -*-times-medium-r-*-*-12-*-*-*-*-*-*",
+	"<Message>WM_PROTOCOLS: WMProtocols()\n",
+
+/*General resources */
+"webview*font: -*-helvetica-medium-r-normal-*-12-*-*-*-*-*-iso8859-*",
+
+/* Class-specific resources */
+"webview*MwCheck.background: white",
+	"webview*MwMenuBar.box_width: 1",
+	"webview*MwMenuButton.highlight_on_enter: False",
+	"webview*MwTooltip.Label.background: LightYellow",
+	"webview*MwTooltip.borderWidth:	1",
+	"webview*MwRichtext.background: white",
+	"webview*MwFrame.shadowWidth: 1",
+	"webview*MwFrame.shadowType: Raised",
+	"webview*MwFrame.allowResize: True",
+
+/* Resources for individual widgets */
+"webview*tooltip.translations:	#override	\\n\
+	<Enter>: webview-highlight(1)	\\n\
+	<Leave>: webview-unhighlight(0)",
+
+"webview*html.MwTextField.translations:	#override	\\n\
+	<Key>Return: form_done()		\\n\
+	<Key>Escape: form_reset()		\\n\
+	:<Key>Tab: form_next()		\\n\
+	Ctrl<Key>n: form_next()		\\n\
+	Ctrl<Key>p: form_previous()		\\n\
+	<Btn1Down>: form_select()",
+
+"webview*html.Text.translations: #override	\\n\
+	:<Key>Tab: form_next()		\\n\
+	<Btn1Down>: form_select()",
+
+"webview*html.translations:	#override	\\n\
+	<Key>space: 	page_down()	\\n\
+	<Key>BackSpace: page_up()	\\n\
+	<Key>Page_Down: page_down()	\\n\
+	<Key>Page_Up: 	page_up()	\\n\
+	<Key>Down: 		scroll_down()	\\n\
+	<Key>Up: 		scroll_up()	\\n\
+	:<Key>Left:		scroll_left()	\\n\
+	:<Key>Right:	scroll_right()",
+	NULL
 };
 
 #define GetNumFonts(X) 		X->num_fonts
@@ -1981,7 +2035,7 @@ static char *fallback[] = {
 #define x_left 2
 #define x_right 8.2
 #define y_bot -1
-#define y_top 34
+#define y_top 68
 #define left_click Button1
 #define right_click Button3
 #define open_menu 1
@@ -2148,7 +2202,7 @@ static int drawMenubar(menu_bar_t *window_info) {
 static int drawMenu(menu_bar_t *window_info) {
 	int error = 0, index = 0;
 	double y, line_height, x;
-	line_height = LineHeight(window_info, y_top, y_bot) + 0.2;
+	line_height = LineHeight(window_info, y_top, y_bot);
 	y = (double)(2 * window_info->size[1] + window_info->size[2]);
 	y = y * (y_top - y_bot);
 	y = y / (double)window_info->gwa.height;
@@ -2169,7 +2223,7 @@ static int drawMenu(menu_bar_t *window_info) {
 	}
 
 	glColor3f(0.7, 0.7, 0.7);
-	y = y_top - (window_info->menus[GetState(window_info)].num_items + 1) * line_height + 0.1;
+	y = y_top - (window_info->menus[GetState(window_info)].num_items + 1) * line_height;
 	glBegin(GL_POLYGON);
 	glVertex3f(x, y, 0);
 	glVertex3f(x + MenuWidth(window_info, GetState(window_info)) + 0.1, y, 0);
@@ -2235,7 +2289,6 @@ static void WMProtocols(Widget w, XEvent *ev, String *params, Cardinal *nparams)
 
 void verify_form(__GUI_FIELD__) {
 	gui_info *ui = (gui_info *)client;
-	Arg wargs[10];
 	ui_field form, *fill = (ui_field *)ui->app->app_array;
 	int len, i, numFields = ui->app->code;
 	ui_form_cb verify = (ui_form_cb)ui->user_data;
@@ -2258,7 +2311,7 @@ void verify_form(__GUI_FIELD__) {
 						form.max, form.min);
 					break;
 				case field_secret:
-					snprintf(error, sizeof(error), "Error: secret aleast 1 cap, 1 number and minimum %d characters",
+					snprintf(error, sizeof(error), "Error: secret aleast 1 cap, 1 num and minimum %d",
 						form.min);
 					break;
 				case field_email:
@@ -2266,22 +2319,20 @@ void verify_form(__GUI_FIELD__) {
 					break;
 			}
 
-			XtSetArg(wargs[0], XtNlabel, error);
-			XtSetValues(ui->statusLine, wargs, 1);
+			XtVaSetValues(ui->statusLine, XtNlabel, error, XtNforeground, 0xFF0000, NULL);
+			XtVaSetValues(field, XtNborderColor, 0xFF0000, NULL);
 			return;
 		}
 
-		XtSetArg(wargs[0], XtNlabel, "");
-		XtSetValues(ui->statusLine, wargs, 1);
+		XtVaSetValues(ui->statusLine, XtNlabel, "", NULL);
+		XtVaSetValues(field, XtNborderColor, 0x008000, NULL);
 		if (verify) {
 			char status[260] = {0};
 			if (verify(ui->app, form.ID, value, status)) {
-				XtSetArg(wargs[0], XtNlabel, status);
-				XtSetValues(ui->statusLine, wargs, 1);
+				XtVaSetValues(ui->statusLine, XtNlabel, status, NULL);
 			} else {
 				// Error
-				XtSetArg(wargs[0], XtNlabel, status);
-				XtSetValues(ui->statusLine, wargs, 1);
+				XtVaSetValues(ui->statusLine, XtNlabel, status, NULL);
 				return;
 			}
 		}
@@ -2294,35 +2345,37 @@ FORCEINLINE void cancel_form(__GUI_FIELD__) {
 	gui_cancel(self);
 }
 
-FORCEINLINE void ebitable_field(__GUI_FIELD__) {
-	TextFieldSetEditable(self, True);
+static FORCEINLINE void gain_ebitable_field(__GUI_FIELD__) {
+	XtVaSetValues(self, XtNdisplayCaret, True, NULL);
+}
+
+static FORCEINLINE void lose_ebitable_field(__GUI_FIELD__) {
+	XtVaSetValues(self, XtNdisplayCaret, False, NULL);
+}
+
+static void tab_ebitable_field(__GUI_FIELD__) {
+	gui_info *ui = (gui_info *)client;
+	ui_field *fill = (ui_field *)ui->app->app_array;
+	ui_form_t field;
+	int i, numFields = ui->app->code;
+	for (i = 0; i < numFields; i++) {
+		if (self == fill[i].index)
+			break;
+	}
+
+	XtVaSetValues(self, XtNdisplayCaret, False, NULL);
+	field = ((i + 1) == numFields) ? fill[0].index : fill[i + 1].index;
+	XtSetKeyboardFocus((Widget)ui->app->app_data, field);
+	XtVaSetValues(field, XtNdisplayCaret, True, NULL);
 }
 
 void verify_field(__GUI_FIELD__) {
-	TextFieldSetEditable(self, True);
 	Arg wargs[10];
 	gui_info *ui = (gui_info *)client;
-	TextFieldVerifyStruct *ret = (TextFieldVerifyStruct *)data;
-	int reason = ret->reason;
-	if (reason == TF_LOSING_FOCUS || reason == TF_VALUE_CHANGED
-		|| reason == TF_MODIFYING_TEXT_VALUE) {
-		printf("focus out, text=%s got: %s\n", ret->text, TextFieldGetString(self));
-		printf("modify, text=%s\n", ret->text);
-		if (ret->text != NULL) {
-			printf("length=%d\n", ret->text->length);
-		}
+	TextFieldReturnStruct *ret = (TextFieldReturnStruct *)data;
+	printf("changed: string = %s\n", ret->string);
 	//	XtSetArg(wargs[0], XtNlabel, "Error: invalid input!");
 	//	XtSetValues(ui->statusLine, wargs, 1);
-	} else {
-		TextFieldReturnStruct *ret2 = (TextFieldReturnStruct *)data;
-		printf("ret->string=%s\n", ret2->string);
-		char *s, *str = TextFieldGetString(self);
-		printf("TEXT: item=%s\n", str);
-		s = str;
-		while (*s)
-			*s++ = '*';
-		TextFieldSetString(self, str);
-	}
 }
 
 Widget Xt_text_field(gui_info *gui, ui_field_type kind, char *label, char *field,
@@ -2338,12 +2391,15 @@ Widget Xt_form_button(gui_info *gui, char *title, XtCallbackProc action, int x) 
 			commandWidgetClass, (Widget)gui->app->app_data,
 			XtNlabel, title,
 			XtNwidth, 80,
-			XtNheight, 16,
-			XtNborder, 2,
-			XtNleft, XawChainBottom,
-			XtNright, XawChainBottom,
-			XtNtop, XawChainBottom,
-			XtNbottom, XawChainBottom,
+			XtNheight, 18,
+			XtNborder, 1,
+			XtNfont, gui->font,
+			XtNborderColor, 0xDAA520,
+			XtNborderWidth, 2,
+			XtNleft, XawChainRight,
+			XtNright, XawChainRight,
+			XtNtop, XawChainRight,
+			XtNbottom, XawChainRight,
 			XtNfromVert, (Widget)gui->app->app_array,
 			NULL);
 	else
@@ -2351,12 +2407,15 @@ Widget Xt_form_button(gui_info *gui, char *title, XtCallbackProc action, int x) 
 			commandWidgetClass, (Widget)gui->app->app_data,
 			XtNlabel, title,
 			XtNwidth, 80,
-			XtNheight, 16,
-			XtNborder, 2,
-			XtNleft, XawChainBottom,
-			XtNright, XawChainBottom,
-			XtNtop, XawChainBottom,
-			XtNbottom, XawChainBottom,
+			XtNheight, 18,
+			XtNborder, 1,
+			XtNfont, gui->font,
+			XtNborderColor, 0xDAA520,
+			XtNborderWidth, 2,
+			XtNleft, XawChainRight,
+			XtNright, XawChainRight,
+			XtNtop, XawChainRight,
+			XtNbottom, XawChainRight,
 			XtNfromHoriz, (Widget)gui->app->app_array,
 			NULL);
 
@@ -2387,7 +2446,9 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 		&argc, argv, fallback, NULL, 0);
 	XtResizeWidget(ui->topLevel, ui->width, ui->height, 0);
 
-	Widget text, form = (void *)XtCreateManagedWidget("form", formWidgetClass, ui->topLevel, NULL, 0);
+	Widget text = NULL, form = (void *)XtCreateManagedWidget("form", formWidgetClass, ui->topLevel, NULL, 0);
+	ui->font = XLoadQueryFont(XtDisplayOfObject(form), "lucidasans-8");
+	ui->font_button = XLoadQueryFont(XtDisplayOfObject(form), "lucidasans-bold-8");
 	for (i = 0; i < numFields; i++) {
 		/* Setup spacing between each `textfield` with `caption/label` */
 		y += spacing;
@@ -2395,6 +2456,7 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 			text = XtVaCreateManagedWidget("label", labelWidgetClass, form,
 				XtNlabel, fill[i].caption,
 				XtNborder, 0,
+				XtNfont, ui->font,
 				XtNborderWidth, 0,
 				XtNheight, 9,
 				XtNx, 6,
@@ -2408,7 +2470,11 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 			XtNstring, fill[i].value,
 			XtNborder, 0,
 			XtNinsertPosition, 0,
-			XtNecho, True,
+			XtNdisplayCaret, False,
+			XtNallowSelection, True,
+			XtNeditable, True,
+			XtNecho, (fill[i].kind != field_secret ? True : False),
+			XtNborderColor, 0xDAA520,
 			XtNx, 5,
 			XtNy, y - 5,
 			XtNheight, 18,
@@ -2416,19 +2482,15 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 			XtNfromVert, text,
 			NULL);
 
-		XtAddCallback(text, XtNactivateCallback, ebitable_field, ui);
-		XtAddCallback(text, XtNfocusCallback, ebitable_field, ui);
-		XtAddCallback(text, XtNgainPrimaryCallback, ebitable_field, ui);
-		XtAddCallback(text, XtNlosePrimaryCallback, ebitable_field, ui);
-		XtAddCallback(text, XtNmotionVerifyCallback, ebitable_field, ui);
+		XtAddCallback(text, XtNactivateCallback, verify_field, ui);
 		XtAddCallback(text, XtNvalueChangedCallback, verify_field, ui);
-		XtAddCallback(text, XtNlosingFocusCallback, verify_field, ui);
-		XtAddCallback(text, XtNmodifyVerifyCallback, verify_field, ui);
+		XtAddCallback(text, XtNfocusCallback, gain_ebitable_field, ui);
+		XtAddCallback(text, XtNgainPrimaryCallback, gain_ebitable_field, ui);
+		XtAddCallback(text, XtNlosingFocusCallback, lose_ebitable_field, ui);
+		XtAddCallback(text, XtNlosePrimaryCallback, lose_ebitable_field, ui);
+		XtAddCallback(text, XtNtabCallback, tab_ebitable_field, ui);
+		//XtAddCallback(text, XtNmodifyVerifyCallback, ebitable_field, ui);
 		fill[i].index = text;
-
-		/* Setup area for each `textfield` for immediate validation,
-		 This needs `REDOING` it's simplier to make check box,
-		 this mimic current `Win32` behaviour, needs a non-clickable checkmark with no box. */
 	}
 
 	ui->app->app_data = form;
@@ -2440,10 +2502,12 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 	/* Setup statusline area in form for `error` feedback*/
 	ui->statusLine = XtVaCreateManagedWidget("label", labelWidgetClass, form,
 		XtNwidth, ui->width - 20,
-		XtNlabel, "Fill out Form",
+		XtNlabel, "Fill out",
+		XtNforeground, 0x008000,
+		XtNfont, ui->font,
 		XtNborder, 0,
 		XtNborderWidth, 0,
-		XtNheight, 9,
+		XtNheight, 10,
 		XtNfromVert, text, NULL);
 
 	/* Store provided `Form` for `verify_form` button click verification process */
@@ -2455,32 +2519,60 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 	return 1;
 }
 
+static Boolean source_changed = FALSE;
+void SourceChanged(Widget w, XtPointer  junk, XtPointer garbage) {
+	XtRemoveCallback(w, XtNcallback, SourceChanged, NULL);
+	source_changed = TRUE;
+}
+
+void ResetSourceChanged(Widget widget) {
+	XtAddCallback(XawTextGetSource(widget), XtNcallback, SourceChanged, NULL);
+	source_changed = FALSE;
+}
+
 void gui_file(__GUI_FILE__) {
-	Widget topLevel = XtParent(self);
+	gui_info ui = {0};
+	Cardinal num_args = 0;
+	Arg arglist[10];
+	int argc = 0;
+	char **argv = NULL;
+
 	if (data == NULL) {
 		gui_cancel(self);
 		return;
 	}
 
-	Widget fileText = XtVaCreateManagedWidget("fileText", asciiTextWidgetClass,
-		topLevel,
-		XtNheight, 600,
-		XtNwidth, 600,
-		XtNtype, XawAsciiFile,
-		XtNstring, data,
-		XtNeditType, XawtextEdit,
-		XtNresize, XawtextResizeBoth,
-		XtNscrollHorizontal, XawtextScrollWhenNeeded,
-		XtNscrollVertical, XawtextScrollAlways,
-		NULL);
+	ui.topLevel = XtAppInitialize(&ui.app_con, data, NULL, 0,
+		&argc, argv, fallback, NULL, 0);
 
-	Display *ldpy = XtDisplayOfObject(fileText);
-	Window win = XtWindow(topLevel);
-	XStoreName(ldpy, win, data);
-	XMapWindow(ldpy, win);
+	XtSetArg(arglist[num_args], XtNtype, XawAsciiFile); num_args++;
+	XtSetArg(arglist[num_args], XtNeditType, XawtextEdit); num_args++;
+	XtSetArg(arglist[num_args], XtNwidth, 500); num_args++;
+	XtSetArg(arglist[num_args], XtNheight, 500); num_args++;
+	XtSetArg(arglist[num_args], XtNshowGrip, True); num_args++;
+	XtSetArg(arglist[num_args], XtNstring, data); num_args++;
+	Widget textwindow = XtCreateManagedWidget("editWindow", asciiTextWidgetClass,
+		ui.topLevel, arglist, num_args);
+
+	XtSetValues(textwindow, arglist, num_args);
+	ResetSourceChanged(textwindow);
+
+	ui.wnd = ui.topLevel;
+	ui.app->wnd = ui.topLevel;
+	ui.app->app_data = textwindow;
+	ui.app->name = data;
+	ui.app->gui = &ui;
+
+	gui_info *gui = (gui_info *)client;
+	XtUnmapWidget(gui->topLevel);
+	gui_cancel(self);
+	gui_active(ui);
+	gui_destroy(ui);
 }
 
 void gui_save_dialog(__GUI_MENU__) {
+	//XawAsciiSaveAsFile(XawTextGetSource(self), data);
+	//ResetSourceChanged(self);
 }
 
 void gui_open_dialog(__GUI_MENU__) {
@@ -2494,14 +2586,16 @@ void gui_open_dialog(__GUI_MENU__) {
 
 	ui.topLevel = XtAppInitialize(&ui.app_con, "FilePrompt", NULL, 0,
 		&argc, argv, fallback, NULL, 0);
-	XtResizeWidget(ui.topLevel, 400, 400, 0);
+	ui.width = 400;
+	ui.height = 400;
+	XtResizeWidget(ui.topLevel, ui.width, ui.height, 0);
 
 	Widget fileSelect = XtVaCreateManagedWidget("fileSelector",
 		fileSelectWidgetClass, ui.topLevel, NULL, 0);
 	if (data)
-		XtAddCallback(fileSelect, XtNcallback, (XtCallbackProc)data, 0);
+		XtAddCallback(fileSelect, XtNcallback, (XtCallbackProc)data, &ui);
 	else
-		XtAddCallback(fileSelect, XtNcallback, (XtCallbackProc)gui_file, 0);
+		XtAddCallback(fileSelect, XtNcallback, (XtCallbackProc)gui_file, &ui);
 
 	FileSelectSet(fileSelect, dir, filter, initial);
 	ui.app->app_data = (void *)fileSelect;
@@ -2560,22 +2654,7 @@ void gui_active(gui_info ui) {
 
 	if (!ui.icon_set) {
 		ui.icon_set = 1;
-		XPMstruct xpms = XPMtoPixels(icon_32x32, TRANSPCOLOR);
-		XImage *iconimg = XCreateImage(ui.dpy, CopyFromParent, DefaultDepth(ui.dpy, ui.screen),
-			ZPixmap, 0, xpms.pixdata, xpms.width, xpms.height, XPM_DEPTH, 0);
-
-		XInitImage(iconimg);
-		Pixmap icon = XCreatePixmap(ui.dpy, ui.win, xpms.width, xpms.height, DefaultDepth(ui.dpy, ui.screen));
-		if (!ui.gc)
-			ui.gc = XCreateGC(ui.dpy, ui.win, 0, 0);
-
-		XPutImage(ui.dpy, icon, ui.gc, iconimg, 0, 0, 0, 0, xpms.width, xpms.height);
-		XWMHints *hints = XAllocWMHints();
-		hints->flags = IconPixmapHint;
-		hints->icon_pixmap = icon;
-		XSetWMHints(ui.dpy, ui.win, hints);
-		XDestroyImage(iconimg);
-		XFree(hints);
+		MwSetIcon(ui.topLevel, icon_32x32);
 	}
 
 	XStoreName(ldpy, ui.win, ui.app->name);
@@ -2740,6 +2819,7 @@ int gui_handler(gui_info *ui) {
 					case run_command:
 						memset(app, 0, sizeof(ui_t));
 						app->wnd = ui->topLevel;
+						app->gui = ui;
 						menuitem_t menu_active = ui->bar_info->menus[GetState(ui->bar_info)]
 							.items[ui->bar_info->menus[GetState(ui->bar_info)].active];
 						if (menu_active.action)
@@ -2848,6 +2928,7 @@ int gui_message_box(ui_t *app, const char *title, const char *text, const Button
 	ui.dpy = XOpenDisplay(NULL);
 	if (ui.dpy == NULL) {
 		fprintf(stderr, "Error opening display display.");
+		return -1;
 	}
 
 	ui.screen = DefaultScreen(ui.dpy);
@@ -2917,8 +2998,7 @@ int gui_message_box(ui_t *app, const char *title, const char *text, const Button
 	createGC(&buttonGC_onClick, &cmap, ui.dpy, &ui.win, RGB_DIM_GRAY);
 
 	/* setup the buttons data */
-	ButtonData *btsData;
-	btsData = (ButtonData *)malloc((size_t)numButtons * sizeof(ButtonData));
+	ButtonData *btsData = (ButtonData *)malloc((size_t)numButtons * sizeof(ButtonData));
 
 	int pass = 0;
 	for (i = 0; i < numButtons; i++) {
@@ -3065,7 +3145,7 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 		ui->gc = XCreateGC(ui->dpy, ui->win, 0, 0);
 
 	XSelectInput(ui->dpy, ui->win,
-		ExposureMask | KeyPressMask | ButtonPressMask | PointerMotionMask);
+		ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
 	ui->wmDeleteMessage = XInternAtom(ui->dpy, "WM_DELETE_WINDOW", False);
 	XSetWMProtocols(ui->dpy, ui->win, &ui->wmDeleteMessage, 1);
 
@@ -3084,7 +3164,7 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 		XSync(ui->dpy, 0);
 		ui->glc = glXCreateContext(ui->dpy, ui->vi, NULL, GL_TRUE);
 		glXMakeCurrent(ui->dpy, ui->win, ui->glc);
-		ui->topLevel = XtAppCreateShell("main", NULL, applicationShellWidgetClass, ui->dpy, NULL, 0);
+		ui->topLevel = XtAppCreateShell(ui->title, NULL, applicationShellWidgetClass, ui->dpy, NULL, 0);
 		XtResizeWidget(ui->topLevel, ui->width, ui->height, 1);
 		ui->app->wnd = ui->topLevel;
 	} else {
@@ -3093,7 +3173,236 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 			(char *)ui->buf, ui->width, ui->height, 32, 0);
 	}
 
+	ui->font = XLoadQueryFont(ui->dpy, "lucidasans-8");
 	return 1;
+}
+
+#include "webview-x11.c"
+
+void *get_info_app_data(void) {
+	return main_gui_info->app->app_data;
+}
+
+ui_wnd_t get_info_app_wnd(void) {
+	return main_gui_info->app->wnd;
+}
+
+static XtActionsRec web_actions[] = {
+	{"page_down", page_down},
+	{"page_up", page_up},
+	{"scroll_down", scroll_down},
+	{"scroll_up", scroll_up},
+	{"scroll_left", scroll_left},
+	{"scroll_right", scroll_right},
+	{"quit", quit},
+};
+
+int gui_webview(gui_info *ui, const char *url, int width, int height, bool show_bar) {
+	int argc = 0;
+	char **argv = NULL;
+	char dim[11];
+	Widget toolcmd, tooltip = NULL;
+	Pixel color;
+	int i;
+
+	ui->width = width;
+	ui->height = height;
+	ui->app->name = url;
+	ui->topLevel = XtVaAppInitialize(&ui->app_con, "webview",
+		NULL, 0,
+		&argc, argv,
+		fallback,
+		XtNbackground, 0x808080,
+		XtNbeNiceToColormap, False,
+		NULL);
+
+	XtAppAddActions(ui->app_con, web_actions, XtNumber(web_actions));
+	XtResizeWidget(ui->topLevel, ui->width, ui->height, 0);
+	if (show_bar)
+		tooltip = XtVaCreatePopupShell("tooltip", mwTooltipWidgetClass, ui->topLevel, NULL);
+
+	MwHighlightInit(ui->topLevel);
+	ui->app->code = show_bar;
+	ui->wnd = XtVaCreateManagedWidget("topbox",
+		mwRudegridWidgetClass, ui->topLevel,
+		XtNyLayout, "30 0 0 100% 30",
+		XtNborderWidth, 0,
+		XtNbeNiceToColormap, False,
+		NULL);
+
+	Widget statbar = XtVaCreateManagedWidget("statbar",
+		mwRudegridWidgetClass, ui->wnd,
+		XtNbackground, 0x808080,
+		XtNgridy, 4,
+		XtNxLayout, "0 100%",
+		XtNyLayout, "0 100% 4",
+		NULL);
+
+	ui->statusLine  = XtVaCreateManagedWidget("",
+		labelWidgetClass, statbar,
+		XtNshadowWidth, 0,
+		XtNgridx, 1,
+		XtNgridy, 1,
+		XtNjustify, XtJustifyLeft,
+		NULL);
+
+	XtVaGetValues(ui->statusLine, XtNbackground, &color, NULL);
+	if (show_bar) {
+		Widget navbar = XtVaCreateManagedWidget("navbar",
+			mwRudegridWidgetClass, ui->wnd,
+			XtNgridy, 0,
+			XtNxLayout, "0 100%",
+			NULL);
+
+		Widget navframe = XtVaCreateManagedWidget("navframe",
+			mwFrameWidgetClass, navbar,
+			XtNgridx, 1,
+			NULL);
+
+		Widget navbox = XtVaCreateManagedWidget("navbox",
+			boxWidgetClass, navframe,
+			XtNvSpace, 0,
+			XtNhSpace, 0,
+			NULL);
+
+		toolcmd = add_command(navbox, cb_back, ui, "back.xpm");
+		MwTooltipAdd(tooltip, toolcmd, _("Back"));
+
+		toolcmd = add_command(navbox, cb_forward, ui, "forward.xpm");
+		MwTooltipAdd(tooltip, toolcmd, _("Forward"));
+
+		toolcmd = add_command(navbox, cb_reload, ui, "reload.xpm");
+		MwTooltipAdd(tooltip, toolcmd, _("Reload"));
+
+		toolcmd = add_command(navbox, cb_cancel, ui, "cancel.xpm");
+		MwTooltipAdd(tooltip, toolcmd, _("Cancel"));
+
+		toolcmd = add_command(navbox, cb_home, ui, "home.xpm");
+		MwTooltipAdd(tooltip, toolcmd, _("Home"));
+
+		toolcmd = add_command(navbox, cb_open, ui, "fld_open.xpm");
+		MwTooltipAdd(tooltip, toolcmd, _("Open"));
+
+		toolcmd = add_command(navbox, cb_save, ui, "save.xpm");
+		MwTooltipAdd(tooltip, toolcmd, _("Save"));
+
+		int numtools = 7;
+		XtVaGetValues(navbox, XtNbackground, &color, NULL);
+		Widget persbar = XtVaCreateManagedWidget("persbar",
+			mwRudegridWidgetClass, navbox,
+			XtNbackground, color,
+			XtNresizable, True,
+			XtNwidth, (ui->width - (33 * numtools)),
+			XtNheight, 27,
+			XtNborder, 0,
+			XtNborderWidth, 0,
+			XtNxLayout, "0 100%", NULL);
+
+		Widget persframe = XtVaCreateManagedWidget("persframe",
+			mwFrameWidgetClass, persbar,
+			XtNgridx, 1,
+			NULL);
+
+		Widget loc_text = XtVaCreateManagedWidget("loc_text",
+			mwComboWidgetClass, persframe,
+			XtNresizable, True,
+			XtNgridx, 3,
+			XtNgridy, 1,
+			NULL);
+
+		char **history = (char **)ui->app->app_array;
+		for (i = 0; i < 10; i++) {
+			history[i] = MwStrdup("");
+		}
+
+		XtVaSetValues(loc_text,
+			XtNcomboData, history,
+			XtNcomboNData, 10,
+			NULL);
+
+		XtAddCallback(loc_text, XtNtextCallback, cb_loc, ui);
+		XtAddCallback(loc_text, XtNlistCallback, cb_loc, ui);
+		ui->user_data = (void *)loc_text;
+	}
+
+	Widget viewport = XtVaCreateManagedWidget("viewport",
+		mwRudegridWidgetClass, ui->wnd,
+		XtNbackground, color,
+		XtNgridy, 3,
+		XtNxLayout, "50% 100 50% 17 17",
+		NULL);
+
+	ui->app->wnd = XtVaCreateManagedWidget("html",
+		mwHtmlWidgetClass, viewport,
+		XtNtopCol, -10,
+		XtNstatus, ui->statusLine,
+		XtNgridWidth, 4,
+		XtNbackground, 0xffffff,
+		XtNborderWidth, 0,
+		XtNdelay, 10,
+		NULL);
+	XtAddCallback(ui->app->wnd, XtNcallback, cb_click, ui);
+	XtAddCallback(ui->app->wnd, XtNchangeUrl, cb_url, ui);
+	XtVaSetValues(ui->app->wnd, XtNurl, url, NULL);
+
+	ui->app->app_data = (void *)XtVaCreateManagedWidget("vscroll",
+		scrollbarWidgetClass, viewport,
+		XtNgridx, 4,
+		XtNorientation, XtorientVertical,
+		NULL);
+
+	main_gui_info->app->wnd = ui->app->wnd;
+	main_gui_info->app->app_data = ui->app->app_data;
+	XtAddCallback((Widget)ui->app->app_data, XtNjumpProc, cb_vscroll_jump, ui);
+	XtAddCallback((Widget)ui->app->app_data, XtNscrollProc, cb_vscroll_scroll, ui);
+
+	XtVaSetValues(ui->statusLine, XtNbackground, color, NULL);
+	XtVaSetValues(statbar, XtNbackground, color, NULL);
+	ui->app->gui = ui;
+	return 1;
+}
+
+void gui_webactive(gui_info ui) {
+	XtAppContext context = XtWidgetToApplicationContext((Widget)ui.topLevel);
+	XtRealizeWidget(ui.topLevel);
+
+	if (!ui.icon_set) {
+		ui.icon_set = 1;
+		MwSetIcon(ui.topLevel, icon_32x32);
+	}
+
+	ui.dpy = XtDisplay(ui.topLevel);
+	ui.win = XtWindow(ui.topLevel);
+	Atom wm_protocols = XInternAtom(ui.dpy,
+		"WM_PROTOCOLS", False);
+	ui.wmDeleteMessage = XInternAtom(ui.dpy,
+		"WM_DELETE_WINDOW", False);
+	XtOverrideTranslations(ui.topLevel,
+		XtParseTranslationTable(
+			"<Message>WM_PROTOCOLS: quit()"));
+	XSetWMProtocols(ui.dpy, ui.win, &ui.wmDeleteMessage, 1);
+	XStoreName(ui.dpy, ui.win, ui.app->name);
+
+	for (;;) {
+		XtAppNextEvent(context, &ui.xev);
+		XtDispatchEvent(&ui.xev);
+		if (ui.xev.xclient.type == ClientMessage && ui.xev.xclient.data.l[0] == ui.wmDeleteMessage)
+			break;
+	}
+	XtUnrealizeWidget(ui.topLevel);
+}
+
+FORCEINLINE void gui_webdestroy(gui_info ui) {
+	int i;
+	char **history = (char **)ui.app->app_array;
+
+	XtDestroyApplicationContext(ui.app_con);
+	if (ui.app->code) {
+		for (i = 0; i < 10; i++)
+			free(history[i]);
+
+		fwfree(ui.forwhist);
+	}
 }
 
 FORCEINLINE void gui_close(gui_info *ui) {
@@ -3105,31 +3414,31 @@ FORCEINLINE void gui_destroy(gui_info ui) {
 }
 
 int gui_loop(gui_info *ui) {
-	XEvent ev;
+	//XEvent ev;
 	unsigned int i;
 	XPutImage(ui->dpy, ui->win, ui->gc, ui->img, 0, 0, 0, 0, ui->width, ui->height);
 	XFlush(ui->dpy);
 	while (XPending(ui->dpy)) {
-		XNextEvent(ui->dpy, &ev);
-		switch (ev.type) {
+		XNextEvent(ui->dpy, &ui->xev);
+		switch (ui->xev.type) {
 			case ClientMessage:
-				if (ev.xclient.data.l[0] == ui->wmDeleteMessage)
+				if (ui->xev.xclient.data.l[0] == ui->wmDeleteMessage)
 					return -(ClientMessage);
 				break;
 			case ButtonPress:
 			case ButtonRelease:
-				ui->mouse = (ev.type == ButtonPress);
+				ui->mouse = (ui->xev.type == ButtonPress);
 				break;
 			case MotionNotify:
-				ui->x = ev.xmotion.x, ui->y = ev.xmotion.y;
+				ui->x = ui->xev.xmotion.x, ui->y = ui->xev.xmotion.y;
 				break;
 			case KeyPress:
 			case KeyRelease: {
-				int m = ev.xkey.state;
-				int k = XkbKeycodeToKeysym(ui->dpy, ev.xkey.keycode, 0, 0);
+					int m = ui->xev.xkey.state;
+					int k = XkbKeycodeToKeysym(ui->dpy, ui->xev.xkey.keycode, 0, 0);
 				for (i = 0; i < 124; i += 2) {
 					if (_GUI_KEYCODES[i] == k) {
-						ui->keys[_GUI_KEYCODES[i + 1]] = (ev.type == KeyPress);
+						ui->keys[_GUI_KEYCODES[i + 1]] = (ui->xev.type == KeyPress);
 						break;
 					}
 				}
@@ -3164,3 +3473,76 @@ int64_t gui_time(void) {
 	return time.tv_sec * 1000 + (time.tv_nsec / 1000000);
 }
 #endif
+
+static const char *webview_check_url(const char *url) {
+	if (url == NULL || strlen(url) == 0) {
+		return DEFAULT_URL;
+	}
+	return url;
+}
+
+WEBVIEW_API int webview_run(const char *title, const char *url, int width,
+	int height, int resizable) {
+	struct webview webview;
+	memset(&webview, 0, sizeof(webview));
+	webview.title = title;
+	webview.url = url;
+	webview.width = width;
+	webview.height = height;
+	webview.resizable = resizable;
+	int r = webview_init(&webview);
+	if (r != 0) {
+		return r;
+	}
+	while (webview_loop(&webview, 1) == 0) {
+	}
+	webview_exit(&webview);
+	return 0;
+}
+
+WEBVIEW_API void webview_debug(const char *format, ...) {
+	char buf[4096];
+	va_list ap;
+	va_start(ap, format);
+	vsnprintf(buf, sizeof(buf), format, ap);
+	webview_print_log(buf);
+	va_end(ap);
+}
+
+static int webview_js_encode(const char *s, char *esc, size_t n) {
+	int r = 1; /* At least one byte for trailing zero */
+	for (; *s; s++) {
+		const unsigned char c = *s;
+		if (c >= 0x20 && c < 0x80 && strchr("<>\\'\"", c) == NULL) {
+			if (n > 0) {
+				*esc++ = c;
+				n--;
+			}
+			r++;
+		} else {
+			if (n > 0) {
+				snprintf(esc, n, "\\x%02x", (int)c);
+				esc += 4;
+				n -= 4;
+			}
+			r += 4;
+		}
+	}
+	return r;
+}
+
+WEBVIEW_API int webview_inject_css(struct webview *w, const char *css) {
+	int n = webview_js_encode(css, NULL, 0);
+	char *esc = (char *)calloc(1, sizeof(CSS_INJECT_FUNCTION) + n + 4);
+	if (esc == NULL) {
+		return -1;
+	}
+	char *js = (char *)calloc(1, n);
+	webview_js_encode(css, js, n);
+	snprintf(esc, sizeof(CSS_INJECT_FUNCTION) + n + 4, "%s(\"%s\")",
+		CSS_INJECT_FUNCTION, js);
+	int r = webview_eval(w, esc);
+	free(js);
+	free(esc);
+	return r;
+}

@@ -40,6 +40,22 @@ typedef struct Buttons_s {
 #include <windows.h>
 #include <commctrl.h>
 #include <strsafe.h>
+#include <exdisp.h>
+#include <mshtmhst.h>
+#include <mshtml.h>
+#include <shobjidl.h>
+
+typedef struct webview2_struct webview2;
+struct webview_priv {
+	HWND hwnd;
+	IOleObject **browser;
+	BOOL is_fullscreen;
+	DWORD saved_style;
+	DWORD saved_ex_style;
+	RECT saved_rect;
+	webview2 *webview2;
+};
+
 typedef struct _MSGBOXDATA {
 	MSGBOXPARAMSW;
 	HWND    pwndOwner;          // Internal use only
@@ -74,11 +90,12 @@ typedef struct ButtonW {
 #define __GUI_FILE__ 	ui_t *self, const char *file
 #define __GUI_FIELD__ 	__GUI_MENU__
 #else
-#define lucida "lucidasans-10"
+#define lucida "lucidasans-bold-8"
 #define __GUI_MENU__ 	ui_t *self, void *data
 #define __GUI_FILE__ 	Widget self, XtPointer client, XtPointer data
 #define __GUI_FIELD__ 	__GUI_FILE__
 #define _DEFAULT_SOURCE 1
+#define ARROW_SCROLLBAR 1
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glu.h>
@@ -98,6 +115,26 @@ typedef struct ButtonW {
 #include <X11/Xatom.h>
 #include <X11/Xmu/Xmu.h>
 #include <X11/Xmu/Converters.h>
+#include <Linux/Mowitz.h>
+
+#ifdef NATIVE_XAW
+#include <X11/Xaw/Box.h>
+#include <X11/Xaw/Paned.h>
+#include <X11/Xaw/Dialog.h>
+#include <X11/Xaw/Command.h>
+#include <X11/Xaw/Form.h>
+#include <X11/Xaw/AsciiText.h>
+
+#include <X11/Xaw/MenuButton.h>
+#include <X11/Xaw/Label.h>
+#include <X11/Xaw/Viewport.h>
+#include <X11/Xaw/List.h>
+#include <X11/Xaw/Scrollbar.h>
+#include <X11/Xaw/SimpleMenu.h>
+#include <X11/Xaw/SmeBSB.h>
+#include <X11/Xaw/SmeLine.h>
+#include <X11/Xaw/Repeater.h>
+#else
 #include <Linux/Xaw95/Box.h>
 #include <Linux/Xaw95/Paned.h>
 #include <Linux/Xaw95/Dialog.h>
@@ -113,10 +150,26 @@ typedef struct ButtonW {
 #include <Linux/Xaw95/SimpleMenu.h>
 #include <Linux/Xaw95/SmeBSB.h>
 #include <Linux/Xaw95/SmeLine.h>
+#include <Linux/Xaw95/Repeater.h>
+#endif
 
 #include <Linux/TextField.h>
 #include <Linux/FileSelect.h>
 #include <Linux/Gridbox.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+struct webview_priv {
+	Widget *window;
+	Widget *scroller;
+	Widget *webview;
+	Widget *inspector_window;
+	void **queue;
+	int ready;
+	int js_busy;
+	int should_exit;
+};
 #endif
 
 #include <stdint.h>
@@ -124,6 +177,7 @@ typedef struct ButtonW {
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdarg.h>
 
 #ifndef C_API
 #	define C_API extern
@@ -146,7 +200,7 @@ typedef struct ButtonW {
 #	endif
 #endif
 
-#define RGB_COLOR(r, g, b)		(r),(g),(g)
+#define RGB_COLOR(r, g, b)		(r),(g),(b)
 #define RGB_BLACK				0,0,0
 #define RGB_WHITE				255,255,255
 #define RGB_RED					255,0,0
@@ -361,6 +415,7 @@ typedef Widget ui_form_t;
 typedef String ui_str_t;
 /* Platform bool type */
 typedef bool ui_bool;
+typedef struct hist hist_t;
 #define ui_field_str(value, field)		ui_str_t value = TextFieldGetString(field)
 #endif
 
@@ -417,6 +472,7 @@ typedef struct {
 	unsigned long code;
 } ui_t;
 
+typedef void (*_platform_cb)(__GUI_FILE__);
 typedef void (*_menu_cb)(__GUI_MENU__);
 typedef void (*ui_file_cb)(ui_t *, const char *);
 typedef bool (*ui_form_cb)(const ui_t *, uint32_t field_id, void *, char *err);
@@ -515,6 +571,8 @@ struct gui_info_s {
 	GLXContext glc;
 	GC gc;
 	XImage *img;
+	XFontStruct *font_button;
+	hist_t *backhist, *forwhist;
 #endif
 };
 
@@ -558,4 +616,114 @@ C_API int64_t gui_time(void);
 	makes reference if variable. */
 #	define casting(val) (void *)((ptrdiff_t)(val))
 #endif
+
+C_API int gui_webview(gui_info *ui, const char *url, int width, int height, bool show_bar);
+C_API void gui_webactive(gui_info ui);
+C_API void gui_webdestroy(gui_info ui);
+
+#define DEFAULT_URL                                                            \
+  "data:text/"                                                                 \
+  "html,%3C%21DOCTYPE%20html%3E%0A%3Chtml%20lang=%22en%22%3E%0A%3Chead%3E%"    \
+  "3Cmeta%20charset=%22utf-8%22%3E%3Cmeta%20http-equiv=%22X-UA-Compatible%22%" \
+  "20content=%22IE=edge%22%3E%3C%2Fhead%3E%0A%3Cbody%3E%3Cdiv%20id=%22app%22%" \
+  "3E%3C%2Fdiv%3E%3Cscript%20type=%22text%2Fjavascript%22%3E%3C%2Fscript%3E%"  \
+  "3C%2Fbody%3E%0A%3C%2Fhtml%3E"
+
+#define CSS_INJECT_FUNCTION                                                    \
+  "(function(e){var "                                                          \
+  "t=document.createElement('style'),d=document.head||document."               \
+  "getElementsByTagName('head')[0];t.setAttribute('type','text/"               \
+  "css'),t.styleSheet?t.styleSheet.cssText=e:t.appendChild(document."          \
+  "createTextNode(e)),d.appendChild(t)})"
+#define WEBVIEW_API C_API
+
+
+/*
+ * MIT License
+ *
+ * For https://github.com/zserge/webview
+ *
+ * Copyright (c) 2017 Serge Zaitsev
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+typedef struct webview webview;
+typedef webview webview_t;
+typedef void (*webview_external_invoke_cb_t)(struct webview *w,
+	const char *arg);
+struct webview {
+	const char *url;
+	const char *title;
+	int width;
+	int height;
+	int resizable;
+	int debug;
+	webview_external_invoke_cb_t external_invoke_cb;
+	struct webview_priv priv;
+	void *userdata;
+};
+
+enum webview_dialog_type {
+	WEBVIEW_DIALOG_TYPE_OPEN = 0,
+	WEBVIEW_DIALOG_TYPE_SAVE = 1,
+	WEBVIEW_DIALOG_TYPE_ALERT = 2
+};
+
+enum webview_dialog_flag {
+	WEBVIEW_DIALOG_FLAG_FILE = (0 << 0),
+	WEBVIEW_DIALOG_FLAG_DIRECTORY = (1 << 0),
+
+	WEBVIEW_DIALOG_FLAG_INFO = (1 << 1),
+	WEBVIEW_DIALOG_FLAG_WARNING = (2 << 1),
+	WEBVIEW_DIALOG_FLAG_ERROR = (3 << 1),
+	WEBVIEW_DIALOG_FLAG_ALERT_MASK = (3 << 1),
+};
+
+typedef void (*webview_dispatch_fn)(struct webview *w, void *arg);
+typedef struct webview_dispatch_arg webview_dispatch_arg;
+
+struct webview_dispatch_arg {
+	webview_dispatch_fn fn;
+	struct webview *w;
+	void *arg;
+};
+
+WEBVIEW_API int webview_run(const char *title, const char *url, int width,
+	int height, int resizable);
+
+WEBVIEW_API int webview_init(struct webview *w);
+WEBVIEW_API int webview_loop(struct webview *w, int blocking);
+WEBVIEW_API int webview_eval(struct webview *w, const char *js);
+WEBVIEW_API int webview_inject_css(struct webview *w, const char *css);
+WEBVIEW_API void webview_set_title(struct webview *w, const char *title);
+WEBVIEW_API void webview_set_fullscreen(struct webview *w, int fullscreen);
+WEBVIEW_API void webview_set_color(struct webview *w, uint8_t r, uint8_t g,
+	uint8_t b, uint8_t a);
+WEBVIEW_API void webview_dialog(struct webview *w,
+	enum webview_dialog_type dlgtype, int flags,
+	const char *title, const char *arg,
+	char *result, size_t resultsz);
+WEBVIEW_API void webview_dispatch(struct webview *w, webview_dispatch_fn fn,
+	void *arg);
+WEBVIEW_API void webview_terminate(struct webview *w);
+WEBVIEW_API void webview_exit(struct webview *w);
+WEBVIEW_API void webview_debug(const char *format, ...);
+WEBVIEW_API void webview_print_log(const char *s);
+
 #endif /* _GUI_H */

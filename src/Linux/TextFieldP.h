@@ -57,6 +57,7 @@ typedef struct {
   char *DefaultString;
   XtCallbackList ActivateCallback;
   XtCallbackList focusCallback;
+  XtCallbackList tabCallback;
   XtCallbackList losingFocusCallback;
   XtCallbackList gainPrimaryCallback;
   XtCallbackList losePrimaryCallback;

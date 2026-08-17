@@ -63,7 +63,7 @@ static int default_value = -99999;
 static XtResource resources[] = {
     {XtNbackground, XtCBackground, XtRPixel, sizeof(Pixel),
         XtOffsetOf(FormRec, core.background_pixel), XtRString,
-	/*XtDefaultBackground*/"gray"},
+	XtDefaultBackground},
     {XtNdefaultDistance, XtCThickness, XtRInt, sizeof(int),
 	Offset(default_spacing), XtRImmediate, (XtPointer)4}
 };
@@ -818,20 +818,7 @@ static XtGeometryResult PreferredGeometry( widget, request, reply  )
  * Set or reset figuring (ignored if not realized)
  */
 
-void
-#if NeedFunctionPrototypes
-XawFormDoLayout(Widget w,
-#if NeedWidePrototypes
-		int doit)
-#else
-		Boolean doit)
-#endif
-#else
-XawFormDoLayout(w, doit)
-Widget w;
-Boolean doit;
-#endif
-{
+void XawFormDoLayout(Widget w, Boolean doit) {
     Widget *childP;
     FormWidget fw = (FormWidget)w;
     int num_children = fw->composite.num_children;

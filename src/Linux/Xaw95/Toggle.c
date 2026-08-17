@@ -125,7 +125,7 @@ ToggleClassRec toggleClassRec = {
     NULL,				/* set_values_hook	  */
     XtInheritSetValuesAlmost,		/* set_values_almost	  */
     NULL,				/* get_values_hook	  */
-    NULL,				/* accept_focus		  */
+	XtInheritAcceptFocus,				/* accept_focus		  */
     XtVersion,				/* version		  */
     NULL,				/* callback_private	  */
     defaultTranslations,		/* tm_table		  */

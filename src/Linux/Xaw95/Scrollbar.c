@@ -61,8 +61,11 @@ SOFTWARE.
 #include <X11/IntrinsicP.h>
 #include <X11/StringDefs.h>
 
+#define ARROW_SCROLLBAR 1
+
 #include <Linux/Xaw95/XawInit.h>
 #include <Linux/Xaw95/ScrollbarP.h>
+#include <Linux/Xaw95/TraversalP.h>
 #include <Linux/Xaw95/ThreeD.h>
 
 #include <X11/Xmu/Drawing.h>
@@ -215,7 +218,7 @@ ScrollbarClassRec scrollbarClassRec = {
     /* set_values_hook  */	NULL,
     /* set_values_almost */	XtInheritSetValuesAlmost,
     /* get_values_hook  */	NULL,
-    /* accept_focus     */	NULL,
+	/* accept_focus     */	XawAcceptFocus,
     /* version          */	XtVersion,
     /* callback_private */	NULL,
     /* tm_table         */	defaultTranslations,

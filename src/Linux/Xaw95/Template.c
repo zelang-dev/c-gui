@@ -1,4 +1,8 @@
-/* $XConsortium: Template.c,v 1.5 94/04/17 20:12:58 converse Exp $ */
+/*
+ * $Id: Template.c,v 1.2 1999/12/15 18:55:24 falk Exp $
+ * Based on Xaw3d v1.3
+ * $XConsortium: Template.c,v 1.5 94/04/17 20:12:58 converse Exp $
+ */
 
 /*
 
@@ -30,6 +34,7 @@ in this Software without prior written authorization from the X Consortium.
 #include <X11/IntrinsicP.h>
 #include <X11/StringDefs.h>
 #include <Linux/Xaw95/TemplateP.h>
+#include <Linux/Xaw95/TraversalP.h>
 
 static XtResource resources[] = {
 #define offset(field) XtOffsetOf(TemplateRec, template.field)
@@ -49,6 +54,20 @@ static XtActionsRec actions[] =
 
 static char translations[] =
 "<Key>:		template()	\n\
+ <EnterWindow>:	FocusEnterWindow()	\n\
+ <LeaveWindow>:	FocusLeaveWindow()	\n\
+ <FocusIn>:	highlight()		\n\
+ <FocusOut>:	reset()			\n\
+ Shift<Key>Tab:	FocusPrevious()		\n\
+ <Key>Tab:	FocusNext()		\n\
+ <Key>Home:	FocusHome()		\n\
+ <Key>End:	FocusEnd()		\n\
+ <Key>Up:	FocusPreviousGroup()	\n\
+ <Key>Down:	FocusNextGroup()	\n\
+ <Key>KP_Home:	FocusHome()		\n\
+ <Key>KP_End:	FocusEnd()		\n\
+ <Key>KP_Up:	FocusPreviousGroup()	\n\
+ <Key>KP_Down:	FocusNextGroup()	\n\
 ";
 
 TemplateClassRec templateClassRec = {
@@ -78,7 +97,7 @@ TemplateClassRec templateClassRec = {
     /* set_values_hook		*/	NULL,
     /* set_values_almost	*/	XtInheritSetValuesAlmost,
     /* get_values_hook		*/	NULL,
-    /* accept_focus		*/	NULL,
+    /* accept_focus		*/	XawAcceptFocus,
     /* version			*/	XtVersion,
     /* callback_private		*/	NULL,
     /* tm_table			*/	translations,

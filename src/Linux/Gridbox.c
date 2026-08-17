@@ -93,7 +93,7 @@
 #include <X11/IntrinsicP.h>
 #include <X11/StringDefs.h>
 #include <X11/Xmu/Converters.h>
-#include <X11/Xmu/CharSet.h>
+#include <Linux/Xaw95/TraversalP.h>
 #include "GridboxP.h"
 
 #define	DEFAULT_MARGIN	-1
@@ -187,7 +187,7 @@ GridboxClassRec	gridboxClassRec = {
 		/* set_values_hook    */    NULL,
 		/* set_values_almost  */    XtInheritSetValuesAlmost,
 		/* get_values_hook    */    NULL,
-		/* accept_focus       */    NULL,
+		/* accept_focus       */    XawAcceptFocus,
 		/* version            */    XtVersion,
 		/* callback_private   */    NULL,
 		/* tm_table           */    NULL,

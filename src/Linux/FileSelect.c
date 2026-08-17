@@ -23,6 +23,19 @@
 #include <X11/StringDefs.h>
 #include <X11/Shell.h>
 #include <X11/Xmu/Misc.h>
+
+#ifdef NATIVE_XAW
+#include <X11/Xaw/AsciiText.h>
+#include <X11/Xaw/Command.h>
+#include <X11/Xaw/MenuButton.h>
+#include <X11/Xaw/Label.h>
+#include <X11/Xaw/Viewport.h>
+#include <X11/Xaw/List.h>
+#include <X11/Xaw/Scrollbar.h>
+#include <X11/Xaw/SimpleMenu.h>
+#include <X11/Xaw/SmeBSB.h>
+#include <X11/Xaw/SmeLine.h>
+#else
 #include <Linux/Xaw95/AsciiText.h>
 #include <Linux/Xaw95/Command.h>
 #include <Linux/Xaw95/MenuButton.h>
@@ -30,9 +43,12 @@
 #include <Linux/Xaw95/Viewport.h>
 #include <Linux/Xaw95/List.h>
 #include <Linux/Xaw95/Scrollbar.h>
+#include <Linux/Xaw95/TraversalP.h>
 #include <Linux/Xaw95/SimpleMenu.h>
 #include <Linux/Xaw95/SmeBSB.h>
 #include <Linux/Xaw95/SmeLine.h>
+#endif
+
 #include <stdlib.h>
 
 #include "FileSelectP.h"
@@ -219,7 +235,7 @@ FileSelectClassRec fileSelectClassRec = {
 		/* set_values_hook	*/	NULL,
 		/* set_values_almost*/	XtInheritSetValuesAlmost,
 		/* get_values_hook	*/	NULL,
-		/* accept_focus	*/	NULL,
+		/* accept_focus	*/	XawAcceptFocus,
 		/* version		*/	XtVersion,
 		/* callback_private	*/	NULL,
 		/* tm_table		*/	defaultTrans,
@@ -761,7 +777,7 @@ static void scrollTo(FileSelectWidget fw, int idx, Widget clip) {
 	   * widget, but it's actual window is a child of a window named
 	   * "clip", created by the Viewport widget.  (This is not documented
 	   * anywhere that I know of, which means that this code is not portable
-	   * to non-standard versions of XawM.
+	   * to non-standard versions of Xaw95.
 	   *
 	   * By reading back the
 	   * y-position of the list widget, we can determine the current

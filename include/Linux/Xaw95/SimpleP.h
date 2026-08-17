@@ -55,7 +55,7 @@ SOFTWARE.
 #include <Linux/Xaw95/Simple.h>
 
 typedef struct {
-    Boolean	(*change_sensitive)(/* widget */);
+    Boolean	(*change_sensitive)(Widget/* widget */);
 } SimpleClassPart;
 
 #define XtInheritChangeSensitive ((Boolean (*)())_XtInherit)
@@ -68,14 +68,15 @@ typedef struct _SimpleClassRec {
 extern SimpleClassRec simpleClassRec;
 
 typedef struct {
-    /* resources */
-    Cursor	cursor;
-    Pixmap	insensitive_border;
-    String      cursor_name;	/* cursor specified by name. */
+	/* resources */
+	Cursor	cursor;
+	Pixmap	insensitive_border;
+	String      cursor_name;	/* cursor specified by name. */
 
-    Pixel       pointer_fg, pointer_bg;	/* Pointer colors. */
-    Boolean     international;
-    /* private state */
+	Pixel       pointer_fg, pointer_bg;	/* Pointer colors. */
+	Boolean     international;
+	Boolean	traversalOn;
+	/* private state */
 } SimplePart;
 
 typedef struct _SimpleRec {

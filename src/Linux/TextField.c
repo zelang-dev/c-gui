@@ -31,6 +31,19 @@
 #include <X11/Xatom.h>
 #include <X11/Xmu/Xmu.h>
 #include <X11/Xmu/Misc.h>
+
+#ifdef NATIVE_XAW
+#include <X11/Xaw/AsciiText.h>
+#include <X11/Xaw/Command.h>
+#include <X11/Xaw/MenuButton.h>
+#include <X11/Xaw/Label.h>
+#include <X11/Xaw/Viewport.h>
+#include <X11/Xaw/List.h>
+#include <X11/Xaw/Scrollbar.h>
+#include <X11/Xaw/SimpleMenu.h>
+#include <X11/Xaw/SmeBSB.h>
+#include <X11/Xaw/SmeLine.h>
+#else
 #include <Linux/Xaw95/AsciiText.h>
 #include <Linux/Xaw95/Command.h>
 #include <Linux/Xaw95/MenuButton.h>
@@ -39,8 +52,10 @@
 #include <Linux/Xaw95/List.h>
 #include <Linux/Xaw95/Scrollbar.h>
 #include <Linux/Xaw95/SimpleMenu.h>
+#include <Linux/Xaw95/TraversalP.h>
 #include <Linux/Xaw95/SmeBSB.h>
 #include <Linux/Xaw95/SmeLine.h>
+#endif
 
 #include <stdio.h>
 #include <stdint.h>
@@ -78,6 +93,8 @@ static XtResource resources[] =
 	offset(ActivateCallback), XtRCallback, NULL},
   {XtNfocusCallback, XtCCallback, XtRCallback, sizeof(XtPointer),
 	offset(focusCallback), XtRCallback, NULL},
+  {XtNtabCallback, XtCCallback, XtRCallback, sizeof(XtPointer),
+	offset(tabCallback), XtRCallback, NULL},
   {XtNlosingFocusCallback, XtCCallback, XtRCallback, sizeof(XtPointer),
 	offset(losingFocusCallback), XtRCallback, NULL},
   {XtNgainPrimaryCallback, XtCCallback, XtRCallback, sizeof(XtPointer),
@@ -102,6 +119,7 @@ static Boolean SetValues(Widget current, Widget request, Widget reply, ArgList a
 static void Draw(TextFieldWidget w), DrawInsert(TextFieldWidget w), MassiveChangeDraw(TextFieldWidget w), DrawTextReposition(TextFieldWidget w),
 ClearHighlight(TextFieldWidget w), DrawHighlight(TextFieldWidget w), DrawCursor(TextFieldWidget w), EraseCursor(TextFieldWidget w);
 static Boolean PositionCursor(TextFieldWidget w), MassiveCursorAdjust(TextFieldWidget w);
+static void TabFocus(Widget aw, XEvent *event, String *params, Cardinal *num_params);
 static void Nothing(Widget aw, XEvent *event, String *params, Cardinal *num_params), Activate(Widget aw, XEvent *event, String *params, Cardinal *num_params), InsertChar(Widget aw, XEvent *event, String *params, Cardinal *num_params), ForwardChar(Widget aw, XEvent *event, String *params, Cardinal *num_params), BackwardChar(Widget aw, XEvent *event, String *params, Cardinal *num_params),
 DeleteNext(Widget aw, XEvent *event, String *params, Cardinal *num_params), DeletePrev(Widget aw, XEvent *event, String *params, Cardinal *num_params), SelectStart(Widget aw, XEvent *event, String *params, Cardinal *num_params), ExtendStart(Widget aw, XEvent *event, String *params, Cardinal *num_params), ExtendAdjust(Widget aw, XEvent *event, String *params, Cardinal *num_params),
 ExtendEnd(Widget aw, XEvent *event, String *params, Cardinal *num_params), InsertSelection(Widget aw, XEvent *event, String *params, Cardinal *num_params);
@@ -123,6 +141,7 @@ static char defaultTranslations[] =
  <Key>Delete:	delete-next-char()\n\
  <Key>BackSpace:	delete-previous-char()\n\
  <Key>Return:	activate()\n\
+ :<Key>Tab:		next_field()\n\
  <Key>:		insert-char()\n\
  Shift<Btn1Down>:	extend-start()\n\
  <Btn1Down>:	select-start()\n\
@@ -156,6 +175,7 @@ static XtActionsRec actions[] =
   {"leave-window", Nothing},
   {"focus-in", TfFocusIn},
   {"focus-out", TfFocusOut},
+  {"next_field", TabFocus},
 };
 
 TextFieldClassRec textfieldClassRec =
@@ -187,7 +207,7 @@ TextFieldClassRec textfieldClassRec =
 		/* set_values_hook       */ NULL,
 		/* set_values_almost     */ XtInheritSetValuesAlmost,
 		/* get_values_hook       */ NULL,
-		/* accept_focus          */ NULL,
+		/* accept_focus          */ XawAcceptFocus,
 		/* version               */ XtVersion,
 		/* callback_private      */ NULL,
 		/* tm_table              */ defaultTranslations,
@@ -571,6 +591,13 @@ textfieldCallbacks(TextFieldWidget w, XtCallbackList callbacks,
 /* ARGSUSED */
 static void
 Nothing(Widget aw, XEvent *event, String *params, Cardinal *num_params) {
+}
+
+static void TabFocus(Widget aw, XEvent *event, String *params, Cardinal *num_params) {
+	TextFieldWidget w = (TextFieldWidget)aw;
+
+	if (w->text.tabCallback)
+		textfieldCallbacks(w, w->text.tabCallback, TF_TAB_FOCUS, event, w->text.Text);
 }
 
 /* ARGSUSED */

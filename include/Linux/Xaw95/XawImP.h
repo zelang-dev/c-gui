@@ -1,4 +1,8 @@
-/* $XConsortium: XawImP.h,v 1.4 95/06/06 20:50:30 kaleb Exp $ */
+/*
+ * $Id: XawImP.h,v 1.2 1999/12/15 19:04:33 falk Exp $
+ * Based on Xaw3d v1.5
+ * $XConsortium: XawImP.h,v 1.4 95/06/06 20:50:30 kaleb Exp $
+ */
 
 /*
  * Copyright 1991 by OMRON Corporation
@@ -85,8 +89,6 @@ typedef	struct _XawImPart
     Dimension		area_height;
     String		input_method;
     String		preedit_type;
-    String		*im_list;
-    Cardinal		im_list_num;
 } XawImPart;
 
 typedef struct _XawIcTablePart
@@ -109,8 +111,6 @@ typedef struct _XawIcTablePart
 
 typedef	struct _XawIcPart
 {
-    String		*ic_list;
-    Cardinal		ic_list_num;
     XIMStyle		input_style;
     Boolean		shared_ic;
     XawIcTableList	shared_ic_table;

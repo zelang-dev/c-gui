@@ -33,17 +33,12 @@
 # include <Xm/XmP.h>
 #endif
 
-#if defined(LAYOUT)
-# include <Linux/Xaw95/LayoutP.h>
-#else
-# include <Linux/Xaw95/LayoutP.h>
-#endif
+#include <Linux/Xaw95/LayoutP.h>
 
 #include <ctype.h>
 #include <stdio.h>
 
-#undef DEBUG
-#ifdef DEBUG
+#ifdef USE_DEBUG
 static char *DBUG_currentproc, *DBUG_lastproc;
 static int DBUG_level = 0;
 # define DBUG_ENTER(s)        \

@@ -56,10 +56,11 @@ SOFTWARE.
 #include <X11/IntrinsicP.h>
 #include <X11/StringDefs.h>
 #include <X11/Xmu/Misc.h>
-#include <Linux/Xaw95/XawInit.h>
-#include <Linux/Xaw95/CommandP.h>
 #include <X11/Xmu/Converters.h>
 #include <X11/extensions/shape.h>
+#include <Linux/Xaw95/XawInit.h>
+#include <Linux/Xaw95/CommandP.h>
+#include <Linux/Xaw95/TraversalP.h>
 
 #define DEFAULT_HIGHLIGHT_THICKNESS 2
 #define DEFAULT_SHAPE_HIGHLIGHT 32767
@@ -73,16 +74,30 @@ SOFTWARE.
 /* Private Data */
 
 static char defaultTranslations[] =
-    "<EnterWindow>:	highlight()		\n\
-     <LeaveWindow>:	reset()			\n\
-     <Btn1Down>:	set()			\n\
-     <Btn1Up>:		notify() unset()	";
+"    <EnterWindow>:	FocusEnterWindow()	\n\
+     <FocusIn>:		highlight()		\n\
+     <LeaveWindow>:	FocusLeaveWindow()	\n\
+     <FocusOut>:	reset()			\n\
+     <Btn1Down>:	FocusTake() set()	\n\
+     <Btn1Up>:		notify() unset()	\n\
+     Shift<Key>Tab:	FocusPrevious()		\n\
+     <Key>Tab:		FocusNext()		\n\
+     <Key>Home:		FocusHome()		\n\
+     <Key>End:		FocusEnd()		\n\
+     <Key>Up:		FocusPreviousGroup()	\n\
+     <Key>Down:		FocusNextGroup()	\n\
+     <Key>KP_Home:	FocusHome()		\n\
+     <Key>KP_End:	FocusEnd()		\n\
+     <Key>KP_Up:	FocusPreviousGroup()	\n\
+     <Key>KP_Down:	FocusNextGroup()	\n\
+     <KeyDown>space:	set()			\n\
+     <KeyUp>space:	notify() unset()	";
 
 #define offset(field) XtOffsetOf(CommandRec, field)
 static XtResource resources[] = {
    {XtNbackground, XtCBackground, XtRPixel, sizeof(Pixel),
       offset(core.background_pixel), XtRString,
-      "gray"},
+      "gray75"},
    {XtNcallback, XtCCallback, XtRCallback, sizeof(XtPointer),
       offset(command.callbacks), XtRCallback, (XtPointer)NULL},
    {XtNhighlightThickness, XtCThickness, XtRDimension, sizeof(Dimension),
@@ -90,7 +105,7 @@ static XtResource resources[] = {
       (XtPointer) /*DEFAULT_SHAPE_HIGHLIGHT*/0},
    {XtNshapeStyle, XtCShapeStyle, XtRShapeStyle, sizeof(int),
       offset(command.shape_style), XtRImmediate,
-     (XtPointer)XawShapeRectangle},
+	 (XtPointer)XawShapeRoundedRectangle},
    {XtNcornerRoundPercent, XtCCornerRoundPercent,
 	XtRDimension, sizeof(Dimension),
 	offset(command.corner_round), XtRImmediate, (XtPointer) 25},
@@ -147,7 +162,7 @@ CommandClassRec commandClassRec = {
     NULL,				/* set_values_hook	  */
     XtInheritSetValuesAlmost,		/* set_values_almost	  */
     NULL,				/* get_values_hook	  */
-    NULL,				/* accept_focus		  */
+	XawAcceptFocus,				/* accept_focus		  */
     XtVersion,				/* version		  */
     NULL,				/* callback_private	  */
     defaultTranslations,		/* tm_table		  */
@@ -499,8 +514,8 @@ Boolean change;
       /* wide lines are centered on the path, so indent it */
       int offset = cbw->command.highlight_thickness/2;
       XDrawRectangle(XtDisplay(w),XtWindow(w), rev_gc, 2*s + offset, 2*s + offset,
-		     cbw->core.width - cbw->command.highlight_thickness - 4 * s,
-		     cbw->core.height - cbw->command.highlight_thickness - 4 * s);
+		     cbw->core.width - cbw->command.highlight_thickness - 2 * s,
+		     cbw->core.height - cbw->command.highlight_thickness - 2 * s);
     }
   }
   cbw->label.label_x+=d;

@@ -62,6 +62,7 @@
 #define XtNactivateCallback	"activateCallback"
 #define	XtNvalueChangedCallback	"valueChangedCallback"
 #define	XtNfocusCallback	"focusCallback"
+#define	XtNtabCallback		"tabCallback"
 #define	XtNlosingFocusCallback	"losingFocusCallback"
 #define	XtNgainPrimaryCallback	"gainPrimaryCallback"
 #define	XtNlosePrimaryCallback	"losePrimaryCallback"
@@ -148,6 +149,7 @@ typedef	struct _TextFieldVerifyStruct {
 #define	TF_MOVING_INSERT_CURSOR	21
 #define	TF_GAIN_PRIMARY		41
 #define	TF_LOSE_PRIMARY		42
+#define	TF_TAB_FOCUS		50
 
 /*
 ** Public function declarations

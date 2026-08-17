@@ -20,8 +20,8 @@ static uint16_t font5x3[] = {0x0000,0x2092,0x002d,0x5f7d,0x279e,0x52a5,0x7ad6,0x
 // clang-format on
 static void fenster_text(gui_info *f, int x, int y, char *s, int scale,
 	uint32_t c) {
-	int dy, dx;
 	while (*s) {
+		int dy, dx;
 		char chr = *s++;
 		if (chr > 32) {
 			uint16_t bmp = font5x3[chr - 32];
@@ -172,6 +172,15 @@ void message_box(__GUI_MENU__) {
 	}
 }
 
+void web_box(__GUI_MENU__) {
+	gui_info ui = {0};
+	char *history[10] = {0};
+	ui.app->app_array = (void **)history;
+	gui_webview(&ui, "about:webview", 500, 300, true);
+	gui_webactive(ui);
+	gui_destroy(ui);
+}
+
 #define ID_FILE_OPEN	1
 #define ID_FILE_FORM 	2
 #define ID_MODE_ALERT	3
@@ -195,11 +204,13 @@ int main(int argc, char **argv) {
 			{ID_MODE_ALERT, "Alert Box", message_box, "A", NULL},
 			{ID_MODE_ARCADE, "Arcade Box", color_box, "B", NULL},
 			{ID_MODE_KEY, "Key Box", key_box, "K", NULL},
+			{__GUI_SEPERATOR__},
+			{ID_MODE_KEY, "Webview Box", web_box, "W", NULL},
 		};
 
 		if (!gui_menufont(&ui, lucida)
 			|| !gui_menu(&ui, 0, items, 4, 1, "File")
-			|| !gui_menu(&ui, 1, items_two, 3, 2, "Mode")) {
+			|| !gui_menu(&ui, 1, items_two, 5, 2, "Mode")) {
 			error = -2;
 		}
 
