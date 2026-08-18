@@ -18,6 +18,7 @@ enum {
 	ID_GUI_CANCEL,
 	ID_GUI_STATUS = 3000,
 	ID_GUI_ERROR,
+	ID_GUI_VERIFIED,
 	ID_GUI_STATIC = 4000,
 };
 
@@ -44,6 +45,7 @@ typedef struct Buttons_s {
 #include <mshtmhst.h>
 #include <mshtml.h>
 #include <shobjidl.h>
+#include <WebView2.h>
 
 typedef struct webview2_struct webview2;
 struct webview_priv {
@@ -399,7 +401,7 @@ typedef char *ui_str_t;
 typedef BOOL ui_bool;
 #define ui_field_str(value, field)	\
 	char value##[256];				\
-	GetDlgItemTextA(field, GetDlgCtrlID(field), value, sizeof(value))
+	GetWindowTextA(field, value, sizeof(value))
 #else
 /* Platform Window type */
 typedef Widget ui_wnd_t;
@@ -465,6 +467,8 @@ typedef struct {
 	BOOL running;
 
 	NSMutableArray list;
+#elif _WIN32
+	unsigned long extra;
 #endif
 	void **app_array;
 	gui_info *gui;
@@ -472,7 +476,7 @@ typedef struct {
 	unsigned long code;
 } ui_t;
 
-typedef void (*_platform_cb)(__GUI_FILE__);
+typedef void (*_platform_cb)(__GUI_FIELD__);
 typedef void (*_menu_cb)(__GUI_MENU__);
 typedef void (*ui_file_cb)(ui_t *, const char *);
 typedef bool (*ui_form_cb)(const ui_t *, uint32_t field_id, void *, char *err);
@@ -529,6 +533,22 @@ typedef struct {
 	ui_menu_t hMenubar;
 } menu_bar_t;
 
+typedef struct webview webview;
+typedef webview webview_t;
+typedef void (*webview_external_invoke_cb_t)(struct webview *w,
+	const char *arg);
+struct webview {
+	const char *url;
+	const char *title;
+	int width;
+	int height;
+	int resizable;
+	int debug;
+	webview_external_invoke_cb_t external_invoke_cb;
+	struct webview_priv priv;
+	void *userdata;
+};
+
 struct gui_info_s {
 	menu_bar_t *bar_info;
 	int width;
@@ -551,6 +571,7 @@ struct gui_info_s {
 	WNDCLASSEX wc;
 	MSG msg;
 	HINSTANCE hinst;
+	webview_t web[1];
 #elif defined(__APPLE__)
 	id pool;
 	NSTextField statusLine;
@@ -617,7 +638,7 @@ C_API int64_t gui_time(void);
 #	define casting(val) (void *)((ptrdiff_t)(val))
 #endif
 
-C_API int gui_webview(gui_info *ui, const char *url, int width, int height, bool show_bar);
+C_API int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height);
 C_API void gui_webactive(gui_info ui);
 C_API void gui_webdestroy(gui_info ui);
 
@@ -636,7 +657,6 @@ C_API void gui_webdestroy(gui_info ui);
   "css'),t.styleSheet?t.styleSheet.cssText=e:t.appendChild(document."          \
   "createTextNode(e)),d.appendChild(t)})"
 #define WEBVIEW_API C_API
-
 
 /*
  * MIT License
@@ -663,22 +683,6 @@ C_API void gui_webdestroy(gui_info ui);
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-typedef struct webview webview;
-typedef webview webview_t;
-typedef void (*webview_external_invoke_cb_t)(struct webview *w,
-	const char *arg);
-struct webview {
-	const char *url;
-	const char *title;
-	int width;
-	int height;
-	int resizable;
-	int debug;
-	webview_external_invoke_cb_t external_invoke_cb;
-	struct webview_priv priv;
-	void *userdata;
-};
-
 enum webview_dialog_type {
 	WEBVIEW_DIALOG_TYPE_OPEN = 0,
 	WEBVIEW_DIALOG_TYPE_SAVE = 1,

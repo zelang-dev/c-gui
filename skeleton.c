@@ -137,7 +137,7 @@ void form_prompt(__GUI_MENU__) {
 	gui_info ui = {0};
 	ui_field form[] = {
 			{IDC_FIELD1, field_text, "Name", "Free alternative to the Motif XmTextField", 290, 40, 1},
-			{IDC_FIELD2, field_secret, "Password", "Fixed Length", 130, 11, 11},
+			{IDC_FIELD2, field_secret, "Password", "Fixed Length", 130, 0, 8},
 			{IDC_FIELD3, field_text, NULL, "No Echo", 90, 6, 4},
 			{IDC_FIELD4, field_text, NULL, "No Pending Delete", 160, 16, 10},
 	};
@@ -174,11 +174,9 @@ void message_box(__GUI_MENU__) {
 
 void web_box(__GUI_MENU__) {
 	gui_info ui = {0};
-	char *history[10] = {0};
-	ui.app->app_array = (void **)history;
-	gui_webview(&ui, "about:webview", 500, 300, true);
+	gui_webview(&ui, "Webview", "http://www.faqs.org", 800, 300);
 	gui_webactive(ui);
-	gui_destroy(ui);
+	gui_webdestroy(ui);
 }
 
 #define ID_FILE_OPEN	1
@@ -187,6 +185,7 @@ void web_box(__GUI_MENU__) {
 #define ID_MODE_ARCADE	4
 #define ID_MODE_KEY 	5
 #define ID_FILE_SAVE 	6
+#define ID_WEB_BOX		7
 
 int main(int argc, char **argv) {
 	int error = -1;
@@ -205,7 +204,7 @@ int main(int argc, char **argv) {
 			{ID_MODE_ARCADE, "Arcade Box", color_box, "B", NULL},
 			{ID_MODE_KEY, "Key Box", key_box, "K", NULL},
 			{__GUI_SEPERATOR__},
-			{ID_MODE_KEY, "Webview Box", web_box, "W", NULL},
+			{ID_WEB_BOX, "Webview Box", web_box, "W", NULL},
 		};
 
 		if (!gui_menufont(&ui, lucida)

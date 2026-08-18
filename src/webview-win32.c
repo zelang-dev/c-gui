@@ -69,6 +69,13 @@ typedef struct {
 #define iid_unref(x) (x)
 #endif
 
+static const char *webview_check_url(const char *url) {
+	if (url == NULL || strlen(url) == 0) {
+		return DEFAULT_URL;
+	}
+	return url;
+}
+
 static inline WCHAR *webview_to_utf16(const char *s) {
 	DWORD size = MultiByteToWideChar(CP_UTF8, 0, s, -1, 0, 0);
 	WCHAR *ws = (WCHAR *)GlobalAlloc(GMEM_FIXED, sizeof(WCHAR) * size);
@@ -647,6 +654,7 @@ static int DisplayHTMLPage(struct webview *w) {
 	VARIANT *pVar;
 	browserObject = *w->priv.browser;
 	int isDataURL = 0;
+	const OLECHAR *string;
 	const char *webview_url = webview_check_url(w->url);
 	if (!browserObject->lpVtbl->QueryInterface(
 		browserObject, iid_unref(&IID_IWebBrowser2), (void **)&webBrowser2)) {
@@ -872,7 +880,7 @@ WEBVIEW_API int webview_init(struct webview *w) {
 	wc.hInstance = hInstance;
 	wc.lpfnWndProc = wndproc;
 	wc.lpszClassName = classname;
-	wc.hIcon = (HICON)LoadImage(NULL, iconFilename, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE | LR_SHARED);
+	wc.hIcon = LoadIcon(wc.hInstance, MAKEINTRESOURCE(ID_WINDOW_ICON));
 #if defined(WEBVIEW_WIN32_ICON_RES)
 	if (wc.hIcon == NULL) {
 		wc.hIcon = (HICON)LoadImage(hInstance, MAKEINTRESOURCE(WEBVIEW_WIN32_ICON_RES), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_SHARED);

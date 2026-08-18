@@ -16,6 +16,7 @@ else()
 		set(CMAKE_WIN32_EXECUTABLE ON)
         add_executable(${SUB_PROJECT_APP} ../skeleton.c
 			${CMAKE_CURRENT_SOURCE_DIR}/res.rc)
+		target_include_directories(${SUB_PROJECT_APP} PRIVATE ${WebView2_DIR})
 	else()
     	add_executable(${SUB_PROJECT_APP} ../skeleton.c)
 	endif()

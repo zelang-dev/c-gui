@@ -6,7 +6,7 @@ static volatile bool main_gui_shutdown = false;
 #define X11_WINDOW_ICON "../resources/icon_32x32.xpm"
 #endif
 
-#if defined(__linux__) || defined(_WIN32_)
+#if defined(__linux__) || defined(_WIN32)
 #	include "re.h"
 #endif
 
@@ -31,7 +31,7 @@ FORCEINLINE ui_bool str_is_regex(const char *pattern, ui_str_t match) {
 	return cocoa_str_regex(match, pattern);
 #else
 	int length = 0;
-	return re_match(pattern, (const char *)match, &length) > 0;
+	return re_match(pattern, (const char *)match, &length) == 0;
 #endif
 }
 
@@ -1422,7 +1422,8 @@ static LRESULT CALLBACK gui_wndproc_form(HWND hwnd, UINT msg, WPARAM wParam, LPA
 
 	ui_form_cb verify = ui->user_data;
 	const ui_t *app = ui->app;
-	Form *form = app->app_data;
+	ui_field form, *fill = (ui_field *)ui->app->app_array;
+	ui_form_t field;
 	const unsigned long numFields = app->code;
 	int i, action, which;
 	HWND hStatus, hEdit, hReady;
@@ -1438,10 +1439,15 @@ static LRESULT CALLBACK gui_wndproc_form(HWND hwnd, UINT msg, WPARAM wParam, LPA
 				SetTextColor(hdc, RGB(0, 0, 0));
 				SetBkColor(hdc, RGB(255, 255, 255));
 				return (LRESULT)GetStockObject(WHITE_BRUSH);
+			} else if (ui->app->extra != 0) {
+				hdc = (HDC)wParam;
+				SetTextColor(hdc, RGB(128, 128, 128));
+				SetBkColor(hdc, RGB(0, 255, 0));
+				return (LRESULT)GetStockObject(WHITE_BRUSH);
 			} else {
 				hdc = (HDC)wParam;
 				SetTextColor(hdc, RGB(255, 255, 255)); 	// RGB_WHITE
-				SetBkColor(hdc, RGB(178, 34, 34)); 		// RGB_FIREBRICK
+				SetBkColor(hdc, RGB(255, 0, 0)); 		// RGB_RED
 				return (LRESULT)GetStockObject(WHITE_BRUSH);
 			}
 		case WM_DRAWITEM:
@@ -1459,23 +1465,50 @@ static LRESULT CALLBACK gui_wndproc_form(HWND hwnd, UINT msg, WPARAM wParam, LPA
 			} else if (action == BN_CLICKED && which == ID_GUI_CONFIRM) {
 				hStatus = GetDlgItem(hwnd, ID_GUI_STATUS);
 				for (i = 0; i < numFields; i++) {
-					which = form[i].ID;
-					hEdit = GetDlgItem(hwnd, which);
+					form = fill[i];
+					which = form.ID;
+					field = (ui_form_t)form.index;
+					char error[100] = {0};
 					hReady = GetDlgItem(hwnd, (ID_GUI_ERROR + which));
-					int len = GetWindowTextLength(hEdit);\
-					SendMessage(hReady, BM_SETCHECK, BST_CHECKED, 0);
-					if (len > form[i].max) {
+					if (str_field_valid(field, form)) {
+						ui->app->extra = which;
+						SendMessage(hReady, BM_SETCHECK, BST_CHECKED, 0);
+						SendMessage(form.index, BST_FOCUS, SBT_OWNERDRAW, (LPARAM)form.value);
+					} else {
+						switch (form.kind) {
+							case field_number:
+								snprintf(error, sizeof(error), "Error: number must be between %d or %d digits",
+									form.min, form.max);
+								break;
+							case field_text:
+								snprintf(error, sizeof(error), "Error: length overflow %d or underflow %d",
+									form.max, form.min);
+								break;
+							case field_secret:
+								snprintf(error, sizeof(error), "Error: secret aleast 1 cap, 1 num and minimum %d",
+									form.min);
+								break;
+							case field_email:
+								snprintf(error, sizeof(error), "Error: invalid Email");
+								break;
+						}
+
+						ui->app->extra = which;
+						GetWindowTextA(field, form.value, form.max);
 						SendMessage(hReady, BM_SETCHECK, BST_UNCHECKED, 0);
-						SendMessage(hStatus, SB_SETTEXT, SBT_OWNERDRAW, (LPARAM)"Error: length overflow");
+						SendMessage(field, SB_SETTEXT, SBT_OWNERDRAW, (LPARAM)form.value);
+						SendMessage(hStatus, SB_SETTEXT, SBT_OWNERDRAW, (LPARAM)error);
 						return (LRESULT)0;
 					}
 
+					ui->app->extra = which;
+					GetWindowTextA(field, form.value, form.max);
+					SendMessage(hReady, BM_SETCHECK, BST_CHECKED, 0);
+					SendMessage(field, SB_SETTEXT, SBT_OWNERDRAW, (LPARAM)form.value);
 					SendMessage(hStatus, SB_SETTEXT, SBT_OWNERDRAW, (LPARAM)"");
-					GetDlgItemTextA(hEdit, which, form[i].value, form[i].max);
 					if (verify) {
 						CHAR status[260];
-						if (verify(app, which, form[i].value, status)) {
-							SetDlgItemTextA(hEdit, (ID_GUI_STATUS + which), status);
+						if (verify(app, which, form.value, status)) {
 						} else {
 							SendMessage(hReady, BM_SETCHECK, BST_UNCHECKED, 0);
 							hEdit = GetDlgItem(hwnd, ID_GUI_STATUS);
@@ -1509,7 +1542,8 @@ HWND windows_text_field(gui_info *ui, ui_field_type kind, char *label, char *fie
 	}
 
 	hEdit = CreateWindow("Edit", field, (kind == field_secret ? estyle | ES_PASSWORD : estyle), x, (y - 10),
-			width, 21, ui->wnd, (HMENU)(tag), NULL, NULL);
+		width, 21, ui->wnd, (HMENU)(tag), NULL, NULL);
+	SendMessage(hEdit, WM_SETFONT, (WPARAM)main_gui_info->bar_info->font_info, MAKELPARAM(FALSE, 0));
 	return hEdit;
 }
 
@@ -1541,7 +1575,8 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 	ui->txtCr = RGB(255, 0, 0);
 	ui->bkCr = RGB(0, 0, 0);
 	ui->user_data = verify;
-	ui->app->app_data = fill;
+	ui->app->extra = 0;
+	ui->app->app_data = NULL;
 	ui->app->code = numFields;
 	ui->app->gui = ui;
 
@@ -1557,15 +1592,16 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 
 	if ((ui->wnd = CreateWindowEx((WS_EX_NOACTIVATE | WS_EX_DLGMODALFRAME) & ~WS_SIZEBOX,
 		ui->wc.lpszClassName, ui->title,
-		WS_CAPTION | WS_POPUP | WS_VISIBLE | WS_CHILD | WS_SYSMENU,	200, 200,
+		WS_CAPTION | WS_POPUP | WS_VISIBLE | WS_CHILD | WS_SYSMENU | WS_TABSTOP, 200, 200,
 		ui->width, ui->height, pWnd, NULL, ui->hinst, NULL)) == NULL)
 		return 0;
 
 	SetWindowLongPtr(ui->wnd, GWLP_USERDATA, (LONG_PTR)ui);
 	for (i = 0; i < numFields; i++) {
 		y += spacing;
-		windows_text_field(ui, fill[i].kind, fill[i].caption, fill[i].value,
+		hEdit = windows_text_field(ui, fill[i].kind, fill[i].caption, fill[i].value,
 			5, y, fill[i].width, fill[i].ID);
+		fill[i].index = hEdit;
 
 		CreateWindow("Button", "", WS_CHILD | WS_VISIBLE | BS_CHECKBOX | BS_TEXT | BS_FLAT | BS_VCENTER, fill[i].width - 12, (y - 6), 12, 12, ui->wnd, (HMENU)(ID_GUI_ERROR + fill[i].ID), NULL, NULL);
 	}
@@ -1578,6 +1614,7 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 		0, ui->height, (ui->width), 5, ui->wnd, (HMENU)ID_GUI_STATUS, NULL, NULL);
 	SendMessage(hEdit, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
 
+	ui->app->app_array = (void **)fill;
 	ShowWindow(ui->wnd, SW_NORMAL);
 	UpdateWindow(ui->wnd);
 	return 1;
@@ -1617,6 +1654,30 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 	ShowWindow(ui->wnd, SW_NORMAL);
 	UpdateWindow(ui->wnd);
 	return 1;
+}
+
+#include "webview-win32.c"
+
+int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height) {
+	int r;
+	ui->web->url = url;
+	ui->web->title = title;
+	ui->web->width = width;
+	ui->web->height = height;
+	ui->web->resizable = 1;
+#ifdef USE_DEBUG
+	ui->web->debug = 1;
+#endif
+	return webview_init(ui->web);
+}
+
+FORCEINLINE void gui_webactive(gui_info ui) {
+	while (webview_loop(ui.web, 1) == 0) {
+	}
+}
+
+FORCEINLINE void gui_webdestroy(gui_info ui) {
+	webview_exit(ui.web);
 }
 
 int gui_menu(gui_info *ui, int num_menu, menuitem_t *items, int number_items, int menu_id, char *name) {
@@ -3197,17 +3258,18 @@ static XtActionsRec web_actions[] = {
 	{"quit", quit},
 };
 
-int gui_webview(gui_info *ui, const char *url, int width, int height, bool show_bar) {
+int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height) {
 	int argc = 0;
 	char **argv = NULL;
 	char dim[11];
 	Widget toolcmd, tooltip = NULL;
 	Pixel color;
+	bool show_bar = 0;
 	int i;
 
 	ui->width = width;
 	ui->height = height;
-	ui->app->name = url;
+	ui->app->name = title;
 	ui->topLevel = XtVaAppInitialize(&ui->app_con, "webview",
 		NULL, 0,
 		&argc, argv,
@@ -3392,12 +3454,11 @@ void gui_webactive(gui_info ui) {
 	XtUnrealizeWidget(ui.topLevel);
 }
 
-FORCEINLINE void gui_webdestroy(gui_info ui) {
-	int i;
-	char **history = (char **)ui.app->app_array;
-
+void gui_webdestroy(gui_info ui) {
 	XtDestroyApplicationContext(ui.app_con);
 	if (ui.app->code) {
+		int i;
+		char **history = (char **)ui.app->app_array;
 		for (i = 0; i < 10; i++)
 			free(history[i]);
 
@@ -3473,13 +3534,6 @@ int64_t gui_time(void) {
 	return time.tv_sec * 1000 + (time.tv_nsec / 1000000);
 }
 #endif
-
-static const char *webview_check_url(const char *url) {
-	if (url == NULL || strlen(url) == 0) {
-		return DEFAULT_URL;
-	}
-	return url;
-}
 
 WEBVIEW_API int webview_run(const char *title, const char *url, int width,
 	int height, int resizable) {
