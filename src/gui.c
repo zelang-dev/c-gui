@@ -1590,9 +1590,9 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 	ui->wc.lpszClassName = "Edit control";
 	RegisterClassEx(&ui->wc);
 
-	if ((ui->wnd = CreateWindowEx((WS_EX_NOACTIVATE | WS_EX_DLGMODALFRAME) & ~WS_SIZEBOX,
+	if ((ui->wnd = CreateWindowEx((WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_DLGMODALFRAME) & ~WS_MAXIMIZE,
 		ui->wc.lpszClassName, ui->title,
-		WS_CAPTION | WS_POPUP | WS_VISIBLE | WS_CHILD | WS_SYSMENU | WS_TABSTOP, 200, 200,
+		(WS_CAPTION | WS_POPUP | WS_VISIBLE | WS_CHILD), 200, 200,
 		ui->width, ui->height, pWnd, NULL, ui->hinst, NULL)) == NULL)
 		return 0;
 
@@ -1658,7 +1658,7 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 
 #include "webview-win32.c"
 
-int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height) {
+FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height) {
 	int r;
 	ui->web->url = url;
 	ui->web->title = title;
@@ -1964,11 +1964,8 @@ int gui_loop(gui_info *ui) {
 	return 0;
 }
 
-void gui_active(gui_info ui) {
+FORCEINLINE void gui_active(gui_info ui) {
 	gui_handler(&ui);
-	//while (gui_loop(&ui) == 0) {
-		//UpdateWindow(ui.wnd);
-	//}
 }
 
 void gui_destroy(gui_info ui) {
@@ -2024,10 +2021,12 @@ int gui_menufont(gui_info *ui, const char *font) {
 	return 0;
 }
 
-int gui_handler(gui_info *ui) {
+FORCEINLINE int gui_handler(gui_info *ui) {
 	while (GetMessage(&ui->msg, NULL, 0, 0)) {
-		TranslateMessage(&ui->msg);
-		DispatchMessage(&ui->msg);
+		if (!IsDialogMessage(ui->wnd, &ui->msg)) {
+			TranslateMessage(&ui->msg);
+			DispatchMessage(&ui->msg);
+		}
 	}
 
 	return (int)ui->msg.wParam;
