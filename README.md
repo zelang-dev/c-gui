@@ -62,101 +62,101 @@ target_link_libraries(your_project PUBLIC GUI::MINI)
 ```c
 #include <gui.h>
 
-#define IDC_FIELD1	10
-#define IDC_FIELD2 	20
-#define IDC_FIELD3	30
-#define IDC_FIELD4	40
+#define IDC_FIELD1 10
+#define IDC_FIELD2  20
+#define IDC_FIELD3 30
+#define IDC_FIELD4 40
 
 void form_prompt(__GUI_MENU__) {
-	gui_info ui = {0};
-	ui_field form[] = {
-			{IDC_FIELD1, field_text, "Name", "Free alternative to the Motif XmTextField", 290, 40, 1},
-			{IDC_FIELD2, field_secret, "Password", "Fixed Length", 130, 0, 8},
-			{IDC_FIELD3, field_text, NULL, "No Echo", 90, 6, 4},
-			{IDC_FIELD4, field_text, NULL, "No Pending Delete", 160, 16, 10},
-	};
+ gui_info ui = {0};
+ ui_field form[] = {
+   {IDC_FIELD1, field_text, "Name", "Free alternative to the Motif XmTextField", 290, 40, 1},
+   {IDC_FIELD2, field_secret, "Password", "Fixed Length", 130, 0, 8},
+   {IDC_FIELD3, field_text, NULL, "No Echo", 90, 6, 4},
+   {IDC_FIELD4, field_text, NULL, "No Pending Delete", 160, 16, 10},
+ };
 
-	gui_form(&ui, "Form Fill", form, 4, (ui_form_cb)data);
-	gui_active(ui);
-	gui_destroy(ui);
+ gui_form(&ui, "Form Fill", form, 4, (ui_form_cb)data);
+ gui_active(ui);
+ gui_destroy(ui);
 }
 
 void message_box(__GUI_MENU__) {
-	ui_button buttons = {0};
-	char lang_bt_eng[] = "English";
+ ui_button buttons = {0};
+ char lang_bt_eng[] = "English";
 
-	buttons[0].label = lang_bt_eng;
-	int res = gui_message_box(self, "Language",
-		"Please choose a language.", buttons, 1);
-	printf("messageBox return %d\n", res);
+ buttons[0].label = lang_bt_eng;
+ int res = gui_message_box(self, "Language",
+  "Please choose a language.", buttons, 1);
+ printf("messageBox return %d\n", res);
 
-	if (res == 1) {
-		buttons[0].label = "No";
-		buttons[1].label = "Yes";
-		buttons[2].label = "Maybe";
-		res = gui_message_box(self, "Answer this question",
-			"Do you like to program in C language?", buttons, 3);
-		printf("messageBox return %d\n", res);
-		if (res == 1) {
-			buttons[0].label = "Accept";
-			res = gui_message_box(self, "Oops",
-				"Unfortunately, you are a bad person.\nThere is nothing I can do for you.", buttons, 1);
-			printf("messageBox return %d\n", res);
-		}
-	}
+ if (res == 1) {
+  buttons[0].label = "No";
+  buttons[1].label = "Yes";
+  buttons[2].label = "Maybe";
+  res = gui_message_box(self, "Answer this question",
+   "Do you like to program in C language?", buttons, 3);
+  printf("messageBox return %d\n", res);
+  if (res == 1) {
+   buttons[0].label = "Accept";
+   res = gui_message_box(self, "Oops",
+    "Unfortunately, you are a bad person.\nThere is nothing I can do for you.", buttons, 1);
+   printf("messageBox return %d\n", res);
+  }
+ }
 }
 
 void web_box(__GUI_MENU__) {
-	gui_info ui = {0};
-	ui.app->wnd = self;
-	gui_webview(&ui, "Webview", "http://www.faqs.org", 800, 300);
-	gui_webactive(ui);
-	gui_webdestroy(ui);
+ gui_info ui = {0};
+ ui.app->wnd = self;
+ gui_webview(&ui, "Webview", "http://www.faqs.org", 800, 300);
+ gui_webactive(ui);
+ gui_webdestroy(ui);
 }
 
-#define ID_FILE_OPEN	1
-#define ID_FILE_FORM 	2
-#define ID_MODE_ALERT	3
-#define ID_MODE_ARCADE	4
-#define ID_MODE_KEY 	5
-#define ID_FILE_SAVE 	6
-#define ID_WEB_BOX		7
+#define ID_FILE_OPEN 1
+#define ID_FILE_FORM  2
+#define ID_MODE_ALERT 3
+#define ID_MODE_ARCADE 4
+#define ID_MODE_KEY  5
+#define ID_FILE_SAVE  6
+#define ID_WEB_BOX  7
 
 int main(int argc, char **argv) {
-	int error = -1;
-	gui_info ui = {0};
-	if (gui_window(&ui, "Skeleton", 600, 600, false)
-		&& gui_menubar(&ui, 2)) {
-		menuitem_t items[] = {
-			{ID_FILE_OPEN, "Open", gui_open_dialog, "O", NULL},
-			{ID_FILE_SAVE, "Save", gui_save_dialog, "S", NULL},
-			{__GUI_SEPERATOR__},
-			{ID_FILE_FORM, "Form", form_prompt, "F", NULL},
-		};
+ int error = -1;
+ gui_info ui = {0};
+ if (gui_window(&ui, "Skeleton", 600, 600, false)
+  && gui_menubar(&ui, 2)) {
+  menuitem_t items[] = {
+   {ID_FILE_OPEN, "Open", gui_open_dialog, "O", NULL},
+   {ID_FILE_SAVE, "Save", gui_save_dialog, "S", NULL},
+   {__GUI_SEPERATOR__},
+   {ID_FILE_FORM, "Form", form_prompt, "F", NULL},
+  };
 
-		menuitem_t items_two[] = {
-			{ID_MODE_ALERT, "Alert Box", message_box, "A", NULL},
-			{ID_MODE_ARCADE, "Arcade Box", color_box, "B", NULL},
-			{ID_MODE_KEY, "Key Box", key_box, "K", NULL},
-			{__GUI_SEPERATOR__},
-			{ID_WEB_BOX, "Webview Box", web_box, "W", NULL},
-		};
+  menuitem_t items_two[] = {
+   {ID_MODE_ALERT, "Alert Box", message_box, "A", NULL},
+   {ID_MODE_ARCADE, "Arcade Box", color_box, "B", NULL},
+   {ID_MODE_KEY, "Key Box", key_box, "K", NULL},
+   {__GUI_SEPERATOR__},
+   {ID_WEB_BOX, "Webview Box", web_box, "W", NULL},
+  };
 
-		if (!gui_menufont(&ui, lucida)
-			|| !gui_menu(&ui, 0, items, 4, 1, "File")
-			|| !gui_menu(&ui, 1, items_two, 5, 2, "Mode")) {
-			error = -2;
-		}
+  if (!gui_menufont(&ui, lucida)
+   || !gui_menu(&ui, 0, items, 4, 1, "File")
+   || !gui_menu(&ui, 1, items_two, 5, 2, "Mode")) {
+   error = -2;
+  }
 
-		// All other logic before entering event loop.
+  // All other logic before entering event loop.
 
-		if (error == -1)
-			error = gui_handler(&ui);
+  if (error == -1)
+   error = gui_handler(&ui);
 
-		gui_close(&ui);
-	}
+  gui_close(&ui);
+ }
 
-	return error;
+ return error;
 }
 ```
 
@@ -174,5 +174,14 @@ int main(int argc, char **argv) {
 <img src="screenshots/macOS/8.png" alt="macOS" width="20%"/>
 
 **Windows**
+
+<img src="screenshots/Windows/1.png" alt="Windows" width="20%"/>
+<img src="screenshots/Windows/2.png" alt="Windows" width="20%"/>
+<img src="screenshots/Windows/3.png" alt="Windows" width="20%"/>
+<img src="screenshots/Windows/4.png" alt="Windows" width="20%"/>
+<img src="screenshots/Windows/5.png" alt="Windows" width="20%"/>
+<img src="screenshots/Windows/6.png" alt="Windows" width="20%"/>
+<img src="screenshots/Windows/7.png" alt="Windows" width="20%"/>
+<img src="screenshots/Windows/8.png" alt="Windows" width="20%"/>
 
 **Linux X11**
