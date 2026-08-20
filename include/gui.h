@@ -461,9 +461,7 @@ typedef struct {
 	/* App's per `Window` title */
 	const char *name;
 #if defined(__APPLE__)
-	BOOL running;
-
-	NSMutableArray list;
+	BOOL running, is_model;
 #elif _WIN32
 	unsigned long extra;
 #endif

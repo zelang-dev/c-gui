@@ -417,7 +417,7 @@ static FORCEINLINE BOOL should_close(__GUI_MENU__) {
 	BOOL is_closing = NO;
 	gui_info *ui = nil;
 	object_getInstanceVariable(self, "gui_info", (void *)&ui);
-	if (ui == main_gui_info && ui->app->running) {
+	if (ui == main_gui_info) {
 		is_closing = YES;
 		ui->app->running = NO;
 		main_gui_shutdown = true;
@@ -492,13 +492,13 @@ static BOOL AppDel_didFinishLaunching(AppDelegate *self, SEL selector, id data) 
 	(void)selector;
 	(void)data;
 	/// Create an instance of the window.
-	self->window = cocoa_init_window(0, 0, 1024, 768,
+	self->window = cocoa_init_window(0, main_gui_info->height, main_gui_info->width, main_gui_info->height,
 		(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
 			| NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable),
 		NSBackingStoreBuffered, YES);
 
 	main_gui_info->wnd = self->window;
-	id view = cocoa_send_rect(cocoa_alloc("View"), "initWithFrame:", 0, 0, 320, 480);
+	id view = cocoa_send_rect(cocoa_alloc("View"), "initWithFrame:", 0, main_gui_info->height, main_gui_info->width, main_gui_info->height);
 	cocoa_set_with(self->window, "setContentView:", view);
 	cocoa_select(self->window, "becomeFirstResponder");
 	cocoa_set_with(self->window, "makeKeyAndOrderFront:", (id)self);
