@@ -447,9 +447,6 @@ typedef struct Forms_s {
 	int max;
 	int min;
 	ui_form_t index;
-#if __APPLE__
-	void *valid;
-#endif
 } Form;
 
 typedef Button ui_button[MAX_MSGBUTTONS];
@@ -567,11 +564,13 @@ struct gui_info_s {
 	/* For passing data to custom `Window` handler routine */
 	void *user_data;
 	ui_t app[1];
+#if defined(_WIN32) || defined(__APPLE__)
+	webview_t web[1];
+#endif
 #if defined(_WIN32)
 	WNDCLASSEX wc;
 	MSG msg;
 	HINSTANCE hinst;
-	webview_t web[1];
 #elif defined(__APPLE__)
 	id pool;
 	NSTextField statusLine;
@@ -729,5 +728,7 @@ WEBVIEW_API void webview_terminate(struct webview *w);
 WEBVIEW_API void webview_exit(struct webview *w);
 WEBVIEW_API void webview_debug(const char *format, ...);
 WEBVIEW_API void webview_print_log(const char *s);
+
+WEBVIEW_API int webview_create(gui_info *ui, webview_t *w);
 
 #endif /* _GUI_H */

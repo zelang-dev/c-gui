@@ -79,20 +79,20 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /D USE_DEBUG")
 endif()
 
-if(APPLE)
+set(gui_file ${CMAKE_CURRENT_SOURCE_DIR}/src/gui.c
+	${CMAKE_CURRENT_SOURCE_DIR}/src/re.c)
+
+if(APPLE OR WIN32)
 	if(BUILD_SHARED_LIBS)
-		add_library(${PROJECT_NAME} SHARED
-			${CMAKE_CURRENT_SOURCE_DIR}/src/gui.c
-			${CMAKE_CURRENT_SOURCE_DIR}/src/webview-cocoa.c
-		)
+		add_library(${PROJECT_NAME} SHARED ${gui_file})
 	else()
-		add_library(${PROJECT_NAME} STATIC
-			${CMAKE_CURRENT_SOURCE_DIR}/src/gui.c
-			${CMAKE_CURRENT_SOURCE_DIR}/src/webview-cocoa.c
-		)
+		add_library(${PROJECT_NAME} STATIC ${gui_file})
 	endif()
+endif()
+
+if(APPLE)
 	find_library(COCOA_LIBRARY Cocoa required)
-	target_link_libraries(${PROJECT_NAME} ${COCOA_LIBRARY})
+	target_link_libraries(${PROJECT_NAME} ${COCOA_LIBRARY} "-framework WebKit" dl)
 else()
 	if(WIN32)
 		find_package(webview2 QUIET)
@@ -112,16 +112,8 @@ else()
 		endif()
 		set(WebView2_DIR "${wil_SOURCE_DIR}/include/" "${webview2_SOURCE_DIR}/build/native/include/")
 		if(BUILD_SHARED_LIBS)
-			add_library(${PROJECT_NAME} SHARED
-				${CMAKE_CURRENT_SOURCE_DIR}/src/gui.c
-				${CMAKE_CURRENT_SOURCE_DIR}/src/re.c
-			)
 			set(WebView2_LIB "${webview2_SOURCE_DIR}/build/native/${PLATFORM}/WebView2Loader.dll")
 		else()
-			add_library(${PROJECT_NAME} STATIC
-				${CMAKE_CURRENT_SOURCE_DIR}/src/gui.c
-				${CMAKE_CURRENT_SOURCE_DIR}/src/re.c
-			)
 			set(WebView2_LIB "${webview2_SOURCE_DIR}/build/native/${PLATFORM}/WebView2LoaderStatic.lib")
 		endif()
 		target_include_directories(${PROJECT_NAME} PRIVATE ${WebView2_DIR})
@@ -142,19 +134,14 @@ else()
 			${CMAKE_CURRENT_SOURCE_DIR}/src/Linux/Xaw95/*.c)
 		file(GLOB gui_files
 			${CMAKE_CURRENT_SOURCE_DIR}/src/Linux/*.c)
+
 		if(BUILD_SHARED_LIBS)
 			add_library(Xaw95 SHARED ${Xaw95_files})
-			add_library(${PROJECT_NAME} SHARED
-				${CMAKE_CURRENT_SOURCE_DIR}/src/gui.c
-				${CMAKE_CURRENT_SOURCE_DIR}/src/re.c
-				${gui_files})
+			add_library(${PROJECT_NAME} SHARED ${gui_file} ${gui_files})
 			add_library(mowitz SHARED ${webview_files} ${mowitz_files})
 		else()
 			add_library(Xaw95 STATIC ${Xaw95_files})
-			add_library(${PROJECT_NAME} STATIC
-				${CMAKE_CURRENT_SOURCE_DIR}/src/gui.c
-				${CMAKE_CURRENT_SOURCE_DIR}/src/re.c
-				${gui_files})
+			add_library(${PROJECT_NAME} STATIC ${gui_file} ${gui_files})
 			add_library(mowitz STATIC ${webview_files} ${mowitz_files})
 		endif()
 
@@ -165,7 +152,6 @@ else()
 		target_include_directories(mowitz
 			PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 			PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-
 
 		if(BUILD_NATIVE_XAW)
 			target_compile_definitions(${PROJECT_NAME}

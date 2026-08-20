@@ -848,7 +848,12 @@ static int webview_fix_ie_compat_mode() {
 	return 0;
 }
 
-WEBVIEW_API int webview_init(struct webview *w) {
+FORCEINLINE int webview_create(gui_info *ui, webview_t *w) {
+	(void)ui;
+	return webview_init(w);
+}
+
+int webview_init(struct webview *w) {
 	WNDCLASSEX wc;
 	HINSTANCE hInstance;
 	DWORD style;
@@ -930,7 +935,7 @@ WEBVIEW_API int webview_init(struct webview *w) {
 	return 0;
 }
 
-WEBVIEW_API int webview_loop(struct webview *w, int blocking) {
+int webview_loop(struct webview *w, int blocking) {
 	MSG msg;
 	if (blocking) {
 		if (GetMessage(&msg, 0, 0, 0) < 0) return 0;
@@ -969,7 +974,7 @@ WEBVIEW_API int webview_loop(struct webview *w, int blocking) {
 	return 0;
 }
 
-WEBVIEW_API int webview_eval(struct webview *w, const char *js) {
+int webview_eval(struct webview *w, const char *js) {
 	if (webview_webview2_enabled) {
 		webview2 *pwv2 = w->priv.webview2;
 		if (pwv2->ready) {
@@ -1053,16 +1058,16 @@ WEBVIEW_API int webview_eval(struct webview *w, const char *js) {
 	return 0;
 }
 
-WEBVIEW_API void webview_dispatch(struct webview *w, webview_dispatch_fn fn,
+FORCEINLINE void webview_dispatch(struct webview *w, webview_dispatch_fn fn,
 	void *arg) {
 	PostMessageW(w->priv.hwnd, WM_WEBVIEW_DISPATCH, (WPARAM)fn, (LPARAM)arg);
 }
 
-WEBVIEW_API void webview_set_title(struct webview *w, const char *title) {
+FORCEINLINE void webview_set_title(struct webview *w, const char *title) {
 	SetWindowText(w->priv.hwnd, title);
 }
 
-WEBVIEW_API void webview_set_fullscreen(struct webview *w, int fullscreen) {
+void webview_set_fullscreen(struct webview *w, int fullscreen) {
 	if (w->priv.is_fullscreen == !!fullscreen) {
 		return;
 	}
@@ -1102,7 +1107,7 @@ WEBVIEW_API void webview_set_fullscreen(struct webview *w, int fullscreen) {
 	}
 }
 
-WEBVIEW_API void webview_set_color(struct webview *w, uint8_t r, uint8_t g,
+FORCEINLINE void webview_set_color(struct webview *w, uint8_t r, uint8_t g,
 	uint8_t b, uint8_t a) {
 	HBRUSH brush = CreateSolidBrush(RGB(r, g, b));
 	SetClassLongPtr(w->priv.hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)brush);
@@ -1279,12 +1284,12 @@ WEBVIEW_API void webview_dialog(struct webview *w,
 	}
 }
 
-WEBVIEW_API void webview_terminate(struct webview *w) { PostQuitMessage(0); }
+FORCEINLINE void webview_terminate(struct webview *w) { PostQuitMessage(0); }
 
-WEBVIEW_API void webview_exit(struct webview *w) {
+FORCEINLINE void webview_exit(struct webview *w) {
 	DestroyWindow(w->priv.hwnd);
 	OleUninitialize();
 }
 
-WEBVIEW_API void webview_print_log(const char *s) { OutputDebugString(s); }
+FORCEINLINE void webview_print_log(const char *s) { OutputDebugString(s); }
 #endif

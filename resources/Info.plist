@@ -24,5 +24,10 @@
   <key>NSHumanReadableCopyright</key> <string>© 2026 Your Organization</string>
   <key>NSPrincipalClass</key> <string>NSApplication</string>
   <key>NSHighResolutionCapable</key> <true/>
+  <key>NSSupportsAutomaticTermination</key> <true/>
+  <key>NSSupportsSuddenTermination</key> <true/>
+  <key>NSAppTransportSecurity</key> <dict>
+	<key>NSAllowsArbitraryLoads</key> <true/>
+  </dict>
 </dict>
 </plist>

@@ -355,6 +355,9 @@ typedef id NSSavePanel;
 typedef id NSOpenPanel;
 typedef id NSData;
 typedef id NSPredicate;
+typedef Class WKWebViewConfiguration;
+typedef Class WKWebView;
+typedef id NSURLRequest;
 
 #define NSNotFound NSIntegerMax
 #define NSVariableStatusItemLength (-1)
@@ -362,6 +365,7 @@ typedef id NSPredicate;
 
 typedef id(*cocoa_window_cb)(id, SEL, NSRect, int, int, bool);
 typedef id(*cocoa_sendrect_cb)(id, SEL, NSRect);
+typedef id(*cocoa_sendview_cb)(id, SEL, NSRect, id);
 typedef id(*cocoa_menu_cb)(id, SEL, NSString *title, SEL action, NSString *key);
 typedef id(*cocoa_event_cb)(id, SEL, unsigned long mask, id expiration, id mode, BOOL deqFlag);
 typedef id(*cocoa_send_cb)(id, SEL);
@@ -456,6 +460,7 @@ C_API cocoa_rect_cb cocoa_rect_func;
 C_API cocoa_send_cb cocoa_send_func;
 C_API cocoa_sendclass_cb cocoa_sendclass_func;
 C_API cocoa_sendrect_cb cocoa_sendrect_func;
+C_API cocoa_sendview_cb cocoa_sendview_func;
 C_API cocoa_sendany_cb cocoa_sendany_func;
 C_API cocoa_sendwith_cb cocoa_sendwith_func;
 C_API cocoa_sendfloat_cb cocoa_sendfloat_func;
@@ -603,6 +608,7 @@ C_API NSInteger cocoa_status_with(id instance, const char *selector, id with, id
 C_API void cocoa_post(const char *id_class, const char *selector);
 C_API id cocoa_get(const char *id_class, const char *selector);
 C_API id cocoa_get_with(const char *id_class, const char *selector, id with);
+C_API id cocoa_get_status(const char *id_class, const char *selector, NSInteger code);
 C_API id cocoa_send(id instance, const char *selector) ;
 C_API id cocoa_alloc(const char *id_class) ;
 C_API id cocoa_new(const char *id_class) ;
@@ -610,6 +616,7 @@ C_API id cocoa_autorelease(const char *id_class);
 C_API id cocoa_send_data(id instance, const char *selector, void *data);
 C_API id cocoa_send_with(id instance, const char *selector, id data);
 C_API id cocoa_send_rect(id instance, const char *selector, float x, float y, float width, float height);
+C_API id cocoa_send_status(id instance, const char *selector, NSInteger code);
 C_API id cocoa_init(id instance);
 C_API id cocoa_alloc_class(Class object);
 C_API id cocoa_init_window(int x, int y, int width, int height, int style, int backing, bool defer);
@@ -620,7 +627,7 @@ C_API NSEvent cocoa_next_event(id instance, unsigned long mask, id expiration, i
 
 C_API NSString cocoa_str(const char *text);
 C_API NSInteger cocoa_strlen(NSString str);
-C_API BOOL cocoa_str_regex(NSString stringToEvaluate, const char *regexString);
+C_API BOOL cocoa_str_regex(const char *regexString, NSString stringToEvaluate);
 C_API BOOL cocoa_str_has(NSString str, char *match);
 C_API NSRange cocoa_str_pos(NSString str, char *match, NSInteger options);
 C_API NSString cocoa_sprintf(const char *fmt, ...);
@@ -640,6 +647,7 @@ C_API void cocoa_set_rect(id instance, const char *selector, float x, float y, f
 C_API void cocoa_set_point(id instance, const char *selector, float x, float y) ;
 C_API void cocoa_set_size(id instance, const char *selector, float x, float y) ;
 C_API void cocoa_set_with(id instance, const char *selector, id with);
+C_API void cocoa_set_pair(id instance, const char *selector, id with, id pair);
 C_API void cocoa_set(id instance, const char *selector, int value);
 
 C_API NSFont cocoa_font(const char *fontName, float size);

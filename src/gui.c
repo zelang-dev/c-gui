@@ -1,13 +1,10 @@
 #include <gui.h>
+#include "re.h"
 static volatile gui_info *main_gui_info = NULL;
 static volatile bool main_gui_shutdown = false;
 
 #if defined(__linux__) && !defined(X11_WINDOW_ICON)
 #define X11_WINDOW_ICON "../resources/icon_32x32.xpm"
-#endif
-
-#if defined(__linux__) || defined(_WIN32)
-#	include "re.h"
 #endif
 
 FORCEINLINE size_t str_length(ui_form_t field) {
@@ -27,12 +24,11 @@ FORCEINLINE size_t str_length(ui_form_t field) {
 }
 
 FORCEINLINE ui_bool str_is_regex(const char *pattern, ui_str_t match) {
-#if __APPLE__
-	return cocoa_str_regex(match, pattern);
-#else
 	int length = 0;
-	return re_match(pattern, (const char *)match, &length) == 0;
+#if __APPLE__
+	return re_match(pattern, (const char *)cocoa_tochar(match), &length) == 0;
 #endif
+	return re_match(pattern, (const char *)match, &length) == 0;
 }
 
 FORCEINLINE ui_bool is_ValidEmail(ui_str_t text) {
@@ -82,7 +78,6 @@ FORCEINLINE ui_bool str_field_valid(ui_form_t field, ui_field form) {
 }
 #if defined(__APPLE__)
 static volatile bool main_apple_menu_ready = false;
-BOOL is_field_valid(NSTextField field, ui_field form);
 // This is equivalent to creating a @class with one public variable named 'window'.
 // This is a strong reference to the class of the AppDelegate
 // (same as [AppDelegate class])
@@ -95,6 +90,7 @@ cocoa_event_cb cocoa_event_func = (cocoa_event_cb)objc_msgSend;
 cocoa_send_cb cocoa_send_func = (cocoa_send_cb)objc_msgSend;
 cocoa_sendclass_cb cocoa_sendclass_func = (cocoa_sendclass_cb)objc_msgSend;
 cocoa_sendrect_cb cocoa_sendrect_func = (cocoa_sendrect_cb)objc_msgSend;
+cocoa_sendview_cb cocoa_sendview_func = (cocoa_sendview_cb)objc_msgSend;
 cocoa_sendany_cb cocoa_sendany_func = (cocoa_sendany_cb)objc_msgSend;
 cocoa_sendwith_cb cocoa_sendwith_func = (cocoa_sendwith_cb)objc_msgSend;
 cocoa_sendfloat_cb cocoa_sendfloat_func = (cocoa_sendfloat_cb)objc_msgSend;
@@ -133,6 +129,10 @@ FORCEINLINE id cocoa_get(const char *id_class, const char *selector) {
 
 FORCEINLINE id cocoa_get_with(const char *id_class, const char *selector, id with) {
 	return cocoa_sendclass_func((id)objc_getClass(id_class), sel_getUid(selector), with);
+}
+
+FORCEINLINE id cocoa_get_status(const char *id_class, const char *selector, NSInteger code) {
+	return cocoa_sendint_func((id)objc_getClass(id_class), sel_getUid(selector), code);
 }
 
 FORCEINLINE void cocoa_post(const char *id_class, const char *selector) {
@@ -187,6 +187,10 @@ FORCEINLINE void cocoa_set_with(id instance, const char *selector, id with) {
 	cocoa_postid_func(instance, sel_getUid(selector), with);
 }
 
+FORCEINLINE void cocoa_set_pair(id instance, const char *selector, id with, id pair) {
+	cocoa_postpair_func(instance, sel_getUid(selector), with, pair);
+}
+
 FORCEINLINE void cocoa_set(id instance, const char *selector, int value) {
 	cocoa_postint_func(instance, sel_getUid(selector), value);
 }
@@ -196,7 +200,11 @@ FORCEINLINE id cocoa_send_data(id instance, const char *selector, void *data) {
 }
 
 FORCEINLINE id cocoa_send_with(id instance, const char *selector, id data) {
-	return cocoa_sendany_func(instance, sel_getUid(selector), (void *)data);
+	return cocoa_send_data(instance, selector, (void *)data);
+}
+
+FORCEINLINE id cocoa_send_status(id instance, const char *selector, NSInteger code) {
+	return cocoa_sendint_func((id)instance, sel_getUid(selector), code);
 }
 
 FORCEINLINE id cocoa_send_rect(id instance, const char *selector, float x, float y, float width, float height) {
@@ -220,9 +228,9 @@ FORCEINLINE NSEvent cocoa_next_event(id instance, unsigned long mask, id expirat
 	return cocoa_event_func(instance, sel_getUid("nextEventMatchingMask:untilDate:inMode:dequeue:"), mask, expiration, mode, deqFlag);
 }
 
-FORCEINLINE BOOL cocoa_str_regex(NSString stringToEvaluate, const char *regexString) {
-	NSPredicate regexPredicate = cocoa_get_with("NSPredicate", "predicateWithFormat:",
-		(id)cocoa_sprintf("SELF MATCHES[cd] %@", regexString));
+FORCEINLINE BOOL cocoa_str_regex(const char *regexString, NSString stringToEvaluate) {
+	id re = (id)cocoa_sprintf("SELF MATCHES[cd] %@", cocoa_str(regexString));
+	NSPredicate regexPredicate = cocoa_get_with("NSPredicate", "predicateWithFormat:", re);
 	return (BOOL)cocoa_intwith_func(regexPredicate, sel_getUid("evaluateWithObject:"), (id)stringToEvaluate);
 }
 
@@ -450,30 +458,29 @@ static void verify_form(__GUI_FIELD__) {
 		which = (ui_field)form[i];
 		field = (NSTextField)which.index;
 		char error[100] = {0};
-		if (is_field_valid(field, which)) {
-			cocoa_check(ui->wnd, (NSButton)which.valid, YES);
+		if (str_field_valid(field, which)) {
 			cocoa_set_with(ui->statusLine, "setStringValue:", (id)cocoa_str(""));
 			cocoa_set_with(cocoa_send((id)which.index, "cell"), "setBackgroundColor:", cocoa_get("NSColor", "greenColor"));
 		} else {
-			cocoa_check(ui->wnd, (NSButton)which.valid, NO);
 			switch (which.kind) {
-			case field_number:
-				snprintf(error, sizeof(error), "Error: number must be between %d or %d digits", which.min, which.max);
-				break;
-			case field_text:
-				snprintf(error, sizeof(error), "Error: length overflow %d or underflow %d", which.max, which.min);
-				break;
-			case field_secret:
-				snprintf(error, sizeof(error), "Error: secret aleast 1 cap, 1 number and minimum %d characters", which.min);
-				break;
-			case field_email:
-				snprintf(error, sizeof(error), "Error: invalid Email");
-				break;
+				case field_number:
+					snprintf(error, sizeof(error), "Error: number must be between %d or %d digits", which.min, which.max);
+					break;
+				case field_text:
+					snprintf(error, sizeof(error), "Error: length overflow %d or underflow %d", which.max, which.min);
+					break;
+				case field_secret:
+					snprintf(error, sizeof(error), "Error: secret aleast 1 cap, 1 number and minimum %d characters", which.min);
+					break;
+				case field_email:
+					snprintf(error, sizeof(error), "Error: invalid Email");
+					break;
 			}
 
-			cocoa_set_with(ui->statusLine, "setStringValue:",
-				(id)cocoa_str(error));
+			cocoa_set_with(ui->statusLine, "setStringValue:", (id)cocoa_str(error));
 			cocoa_set_with(cocoa_send(ui->statusLine, "cell"), "setTextColor:", cocoa_get("NSColor", "redColor"));
+			cocoa_set_with(cocoa_send((id)which.index, "cell"), "setTextColor:", cocoa_get("NSColor", "whiteColor"));
+			cocoa_set_with(cocoa_send((id)which.index, "cell"), "setBackgroundColor:", cocoa_get("NSColor", "redColor"));
 			return;
 		}
 	}
@@ -500,28 +507,26 @@ static BOOL AppDel_didFinishLaunching(AppDelegate *self, SEL selector, id data) 
 	// Application menu
 	id menubar = cocoa_send(cocoa_new("NSMenu"), "autorelease");
 	id appMenuItem = cocoa_send(cocoa_new("NSMenuItem"), "autorelease");
+	id appMenu = cocoa_send(cocoa_new("NSMenu"), "autorelease");
 
 	cocoa_set_with(menubar, "addItem:", appMenuItem);
 	cocoa_set_with(NSApp, "setMainMenu:", menubar);
 	cocoa_set_with(NSApp, "setServicesMenu:",
 		cocoa_send_with(cocoa_alloc("NSMenu"), "initWithTitle:", (id)cocoa_str("Services")));
 
-	/* services */
-	//NSMenu *serviceMenu = cocoa_send_with(cocoa_get("NSMenu", "alloc"), "initWithTitle:", cocoa_str(""));
-	//NSMenuItem *serviceMenuItem = cocoa_menuitem_action(appMenu, nil, "Services", nil, "", nil);
-	//cocoa_set_with(serviceMenuItem, "setSubmenu:", serviceMenu);
-	//cocoa_set_with(NSApp, "setServicesMenu:", serviceMenu);
-
-	id appMenu = cocoa_send(cocoa_new("NSMenu"), "autorelease");
 	id appName = cocoa_send(cocoa_get("NSProcessInfo", "processInfo"), "processName");
 	cocoa_menuitem(appMenu, appName, "About ", "orderFrontStandardAboutPanel:", "");
 	cocoa_menu_separator(appMenu);
+
+	/* Services: todo */
 	cocoa_menuitem_sub(appMenu, "Services", cocoa_send(NSApp, "servicesMenu"));
 	cocoa_menu_separator(appMenu);
+
 	cocoa_menuitem(appMenu, appName, "Hide ", "hide:", "h");
 	cocoa_menuitem(appMenu, nil, "Hide Other", "hideOtherApplications:", "h");
 	cocoa_menuitem(appMenu, nil, "Show All", "unhideAllApplications:", "");
 	cocoa_menu_separator(appMenu);
+
 	cocoa_menuitem_action(appMenu, appName, "Quit ", terminate_handler, "q", nil);
 	cocoa_set_with(appMenuItem, "setSubmenu:", appMenu);
 
@@ -642,51 +647,6 @@ FORCEINLINE void cocoa_check(id window, NSButton button, BOOL onOff) {
 	cocoa_set(cocoa_send(window, "contentView"), "setNeedsDisplay:", YES);
 }
 
-FORCEINLINE BOOL isValidEmail(id text) {
-	const char emailRegex[] =
-		"(?:[a-z0-9!#$%\\&'*+/=?\\^_`{|}~-]+(?:\\.[a-z0-9!#$%\\&'*+/=?\\^_`{|}"
-		"~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\"
-		"x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-"
-		"z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:25[0-5"
-		"]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-"
-		"9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21"
-		"-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])";
-	return cocoa_str_regex((NSString)text, emailRegex);
-}
-
-BOOL checkPasswordValidity(NSTextField text) {
-	NSString passwordValue = (NSString)cocoa_send((id)text, "stringValue");
-	BOOL capitalResult = cocoa_str_regex(passwordValue, ".*[A-Z]+.*");
-	BOOL smallResult = cocoa_str_regex(passwordValue, ".*[a-z]+.*");
-	BOOL numberResult = cocoa_str_regex(passwordValue, ".*[0-9]+.*");
-
-	return capitalResult && smallResult && numberResult;
-}
-
-FORCEINLINE BOOL isMinLength(NSTextField text, ui_field form) {
-	return (0 == form.min) ? true : (int)cocoa_strlen((NSString)cocoa_send((id)text, "stringValue")) >= form.min;
-}
-
-FORCEINLINE BOOL isMaxLength(NSTextField text, ui_field form) {
-	return (0 == form.max) ? true : (int)cocoa_strlen((NSString)cocoa_send((id)text, "stringValue")) <= form.max;
-}
-
-FORCEINLINE BOOL isEmailValid(NSTextField field, ui_field form) {
-	return form.kind == field_email ? isValidEmail(cocoa_send((id)field, "stringValue")) : true;
-}
-
-FORCEINLINE BOOL isPasswordValid(NSTextField text, ui_field form) {
-	return (form.kind == field_secret) ? checkPasswordValidity(text) : true;
-}
-
-FORCEINLINE BOOL is_field_valid(NSTextField field, ui_field form) {
-	BOOL minimunLengthValidy = isMinLength(field, form);
-	BOOL maximumLengthValidity = isMaxLength(field, form);
-	BOOL emailValidity = isEmailValid(field, form);
-	BOOL passwordValidity = isPasswordValid(field, form);
-	return (minimunLengthValidy && maximumLengthValidity && emailValidity && passwordValidity);
-}
-
 static BOOL should_end_editing(__GUI_MENU__) {
 	(void)selector;
 	gui_info *ui = nil;
@@ -704,13 +664,13 @@ static BOOL should_end_editing(__GUI_MENU__) {
 	switch (form[i].kind) {
 		case field_number:
 		case field_text:
-			is_ready = isMinLength(field, form[i]) && isMaxLength(field, form[i]);
+			is_ready = is_MinLength(field, form[i]) && is_MaxLength(field, form[i]);
 			break;
 		case field_email:
-			is_ready = isEmailValid(field, form[i]);
+			is_ready = is_EmailValid(field, form[i]);
 			break;
 		case field_secret:
-			is_ready = isPasswordValid(field, form[i]);
+			is_ready = is_PasswordValid(field, form[i]);
 			break;
 		case field_date:
 			is_ready = YES;
@@ -764,18 +724,6 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 		/* Store `NSTextField` into provided `Form` for `verify_form` and `should_end_editing`
 		 validation process */
 		fill[i].index = text;
-
-		/* Setup area for each `textfield` for immediate validation,
-		 This needs `REDOING` it's simplier to make check box,
-		 this mimic current `Win32` behaviour, needs a non-clickable checkmark with no box. */
-		NSButton check = cocoa_send(cocoa_send_rect(cocoa_alloc("NSButton"), "initWithFrame:",
-			fill[i].width - 12, (ui->height - y) - 1, 12, 12), "autorelease");
-		cocoa_set(check, "setButtonType:", NSSwitchButton);
-		cocoa_set(check, "setBezelStyle:", NSBezelStyleInline);
-		cocoa_set(check, "setState:", NSControlStateValueOff);
-		cocoa_postpairwith_func((id)cocoa_send(ui->wnd, "contentView"),
-			sel_getUid("addSubview:positioned:relativeTo:"), check, NSWindowAbove, text);
-		fill[i].valid = (void *)check;
 	}
 
 	NSButton button2, button1 = cocoa_form_button(ui->wnd, "Confirm", "verify_form:", 136, 25);
@@ -986,7 +934,7 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 
 		ui->pool = cocoa_get("NSAutoreleasePool", "new");
 		int mask = (NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable);
-		ui->wnd = cocoa_init_window(0, 0, ui->width, ui->height, (buffered == -1 ? mask & ~NSWindowStyleMaskResizable : mask),
+		ui->wnd = cocoa_init_window(ui->width,(main_gui_info->height - ui->height), ui->width, ui->height, (buffered == -1 ? mask & ~NSWindowStyleMaskResizable : mask),
 			NSBackingStoreBuffered, NO);
 
 		Class c = objc_allocateClassPair((Class)objc_getClass("NSView"), "GuiView", 0);
@@ -1021,6 +969,8 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 
 	return (ui->wnd != nil && NSApp != nil && AppDelClass != nil);
 }
+
+#include "webview-cocoa.c"
 
 FORCEINLINE void gui_close(gui_info *ui) {
 	cocoa_select(ui->wnd, "close");
@@ -1657,28 +1607,6 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 }
 
 #include "webview-win32.c"
-
-FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height) {
-	int r;
-	ui->web->url = url;
-	ui->web->title = title;
-	ui->web->width = width;
-	ui->web->height = height;
-	ui->web->resizable = 1;
-#ifdef USE_DEBUG
-	ui->web->debug = 1;
-#endif
-	return webview_init(ui->web);
-}
-
-FORCEINLINE void gui_webactive(gui_info ui) {
-	while (webview_loop(ui.web, 1) == 0) {
-	}
-}
-
-FORCEINLINE void gui_webdestroy(gui_info ui) {
-	webview_exit(ui.web);
-}
 
 int gui_menu(gui_info *ui, int num_menu, menuitem_t *items, int number_items, int menu_id, char *name) {
 	int r = 0;
@@ -3260,7 +3188,6 @@ static XtActionsRec web_actions[] = {
 int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height) {
 	int argc = 0;
 	char **argv = NULL;
-	char dim[11];
 	Widget toolcmd, tooltip = NULL;
 	Pixel color;
 	bool show_bar = 0;
@@ -3531,6 +3458,28 @@ int64_t gui_time(void) {
 	struct timespec time;
 	clock_gettime(CLOCK_REALTIME, &time);
 	return time.tv_sec * 1000 + (time.tv_nsec / 1000000);
+}
+#endif
+
+#if defined(__APPLE__) || defined(_WIN32)
+FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height) {
+	ui->web->url = url;
+	ui->web->title = title;
+	ui->web->width = width;
+	ui->web->height = height;
+	ui->web->resizable = 1;
+	ui->web->debug = 1;
+	return webview_create(ui, ui->web);
+	//return webview_init(ui->web);
+}
+
+FORCEINLINE void gui_webactive(gui_info ui) {
+	while (webview_loop(ui.web, 1) == 0) {
+	}
+}
+
+FORCEINLINE void gui_webdestroy(gui_info ui) {
+	webview_exit(ui.web);
 }
 #endif
 
