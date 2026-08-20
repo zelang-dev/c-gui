@@ -108,7 +108,6 @@ void message_box(__GUI_MENU__) {
 
 void web_box(__GUI_MENU__) {
  gui_info ui = {0};
- ui.app->wnd = self;
  gui_webview(&ui, "Webview", "http://www.faqs.org", 800, 300);
  gui_webactive(ui);
  gui_webdestroy(ui);
@@ -184,4 +183,13 @@ int main(int argc, char **argv) {
 <img src="screenshots/Windows/7.png" alt="Windows" width="20%"/>
 <img src="screenshots/Windows/8.png" alt="Windows" width="20%"/>
 
-**Linux X11**
+**Linux X11 - WSL2**
+
+<img src="screenshots/X11/1.png" alt="X11" width="20%"/>
+<img src="screenshots/X11/2.png" alt="X11" width="20%"/>
+<img src="screenshots/X11/3.png" alt="X11" width="20%"/>
+<img src="screenshots/X11/4.png" alt="X11" width="20%"/>
+<img src="screenshots/X11/5.png" alt="X11" width="20%"/>
+<img src="screenshots/X11/6.png" alt="X11" width="20%"/>
+<img src="screenshots/X11/7.png" alt="X11" width="20%"/>
+<img src="screenshots/X11/8.png" alt="X11" width="20%"/>

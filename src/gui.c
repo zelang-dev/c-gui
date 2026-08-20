@@ -3166,6 +3166,7 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 }
 
 #include "webview-x11.c"
+static char webview_hishory[10] = {0};
 
 void *get_info_app_data(void) {
 	return main_gui_info->app->app_data;
@@ -3190,8 +3191,21 @@ int gui_webview(gui_info *ui, const char *title, const char *url, int width, int
 	char **argv = NULL;
 	Widget toolcmd, tooltip = NULL;
 	Pixel color;
-	bool show_bar = 0;
+	char b[1024], *p;
+	bool show_bar = 1;
 	int i;
+
+	p = getenv("HOME");
+	if (!p) p = "/tmp";
+	sprintf(b, "%s/.webview", p);
+	mkdir(b, 0700);
+	strcat(b, "/cache");
+	mkdir(b, 0700);
+
+	if (getenv("PIXPATH") == NULL) {
+		sprintf(b, "PIXPATH=%s", DEFAULT_DATAPATH);
+		putenv(b);
+	}
 
 	ui->width = width;
 	ui->height = height;
@@ -3208,6 +3222,8 @@ int gui_webview(gui_info *ui, const char *title, const char *url, int width, int
 	XtResizeWidget(ui->topLevel, ui->width, ui->height, 0);
 	if (show_bar)
 		tooltip = XtVaCreatePopupShell("tooltip", mwTooltipWidgetClass, ui->topLevel, NULL);
+	else
+		MwInitFormat(XtDisplayOfObject(ui->topLevel));
 
 	MwHighlightInit(ui->topLevel);
 	ui->app->code = show_bar;
@@ -3298,6 +3314,7 @@ int gui_webview(gui_info *ui, const char *title, const char *url, int width, int
 			XtNgridy, 1,
 			NULL);
 
+		ui->app->app_array = (void **)webview_hishory;
 		char **history = (char **)ui->app->app_array;
 		for (i = 0; i < 10; i++) {
 			history[i] = MwStrdup("");
