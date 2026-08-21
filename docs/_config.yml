@@ -10,7 +10,7 @@ include:
   - index.md
   - LICENSE.md
   - ISSUE_TEMPLATE.md
-  - examples
+  - screenshots
   - PULL_REQUEST_TEMPLATE.md
 
 theme: jekyll-theme-dinky #jekyll-theme-hacker

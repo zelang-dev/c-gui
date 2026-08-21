@@ -40,17 +40,17 @@ The same **skeleton app** overhauled to include most **Apple macOS API** automat
 
 ## Installation
 
-[CMake](https://cmake.org) `FetchContent` and `find_package` is use here to setup your project `App`. Your **WILL** need to *modify* every *file* in [resources](./resources/) folder. The folder will be created in your *root directory* if it doesn't exist. This project started out inside **repo** [Httpi](https://github.com/zelang-dev/httpi), all prior commits are there. This is provided as *quick way* to *reproduce* an *GUI* `App` with little effort.
+[CMake](https://cmake.org) `FetchContent` and `find_package` is use here to setup your project `App`. Your **WILL** need to *modify* every *file* in [resources](./resources/) folder. The folder will be created in your *root directory* if it doesn't exist. This project started out inside **repo** [Httpi](https://github.com/zelang-dev/httpi), all prior commits are there. This is provided as *quick way* to *reproduce* an *GUI* `App` with little effort. It will be *updated as needed*, unless **PR** provided.
 
 ```sh
 find_package(gui QUIET CONFIG)
 if(NOT gui_FOUND)
-	FetchContent_Declare(gui
-		URL https://github.com/zelang-dev/c-gui/archive/refs/heads/main.zip
-		#URL https://github.com/zelang-dev/c-gui/archive/refs/tags/v0.0.1.zip
-		#URL_MD5 6e9756dee0ef5903d850dc021d5df725
-	)
-	FetchContent_MakeAvailable(gui)
+ FetchContent_Declare(gui
+  URL https://github.com/zelang-dev/c-gui/archive/refs/heads/main.zip
+  #URL https://github.com/zelang-dev/c-gui/archive/refs/tags/v0.0.1.zip
+  #URL_MD5 6e9756dee0ef5903d850dc021d5df725
+ )
+ FetchContent_MakeAvailable(gui)
 endif()
 target_include_directories(your_project
  PRIVATE $<BUILD_INTERFACE:${GUI_INCLUDE_DIR} $<INSTALL_INTERFACE:${GUI_INCLUDE_DIR})
@@ -100,7 +100,7 @@ void message_box(__GUI_MENU__) {
   if (res == 1) {
    buttons[0].label = "Accept";
    res = gui_message_box(self, "Oops",
-	"Unfortunately, you are a bad person.\nThere is nothing I can do for you.", buttons, 1);
+ "Unfortunately, you are a bad person.\nThere is nothing I can do for you.", buttons, 1);
    printf("messageBox return %d\n", res);
   }
  }
@@ -169,34 +169,34 @@ int main(int argc, char **argv) {
 </tr>
 <tr>
 <td>
-<img src="../screenshots/macOS/1.png" alt="macOS" width="20%"/>
-<img src="../screenshots/macOS/2.png" alt="macOS" width="20%"/>
-<img src="../screenshots/macOS/3.png" alt="macOS" width="20%"/>
-<img src="../screenshots/macOS/4.png" alt="macOS" width="20%"/>
-<img src="../screenshots/macOS/5.png" alt="macOS" width="20%"/>
-<img src="../screenshots/macOS/6.png" alt="macOS" width="20%"/>
-<img src="../screenshots/macOS/7.png" alt="macOS" width="20%"/>
-<img src="../screenshots/macOS/8.png" alt="macOS" width="20%"/>
+<img src="screenshots/macOS/1.png" alt="macOS" width="75%"/>
+<img src="screenshots/macOS/2.png" alt="macOS" width="75%"/>
+<img src="screenshots/macOS/3.png" alt="macOS" width="75%"/>
+<img src="screenshots/macOS/4.png" alt="macOS" width="75%"/>
+<img src="screenshots/macOS/5.png" alt="macOS" width="75%"/>
+<img src="screenshots/macOS/6.png" alt="macOS" width="75%"/>
+<img src="screenshots/macOS/7.png" alt="macOS" width="75%"/>
+<img src="screenshots/macOS/8.png" alt="macOS" width="75%"/>
 </td>
 <td>
-<img src="../screenshots/Windows/1.png" alt="Windows" width="20%"/>
-<img src="../screenshots/Windows/2.png" alt="Windows" width="20%"/>
-<img src="../screenshots/Windows/3.png" alt="Windows" width="20%"/>
-<img src="../screenshots/Windows/4.png" alt="Windows" width="20%"/>
-<img src="../screenshots/Windows/5.png" alt="Windows" width="20%"/>
-<img src="../screenshots/Windows/6.png" alt="Windows" width="20%"/>
-<img src="../screenshots/Windows/7.png" alt="Windows" width="20%"/>
-<img src="../screenshots/Windows/8.png" alt="Windows" width="20%"/>
+<img src="screenshots/Windows/1.png" alt="Windows" width="75%"/>
+<img src="screenshots/Windows/2.png" alt="Windows" width="75%"/>
+<img src="screenshots/Windows/3.png" alt="Windows" width="75%"/>
+<img src="screenshots/Windows/4.png" alt="Windows" width="75%"/>
+<img src="screenshots/Windows/5.png" alt="Windows" width="75%"/>
+<img src="screenshots/Windows/6.png" alt="Windows" width="75%"/>
+<img src="screenshots/Windows/7.png" alt="Windows" width="75%"/>
+<img src="screenshots/Windows/8.png" alt="Windows" width="75%"/>
 </td>
 <td>
-<img src="../screenshots/X11/1.png" alt="X11" width="20%"/>
-<img src="../screenshots/X11/2.png" alt="X11" width="20%"/>
-<img src="../screenshots/X11/3.png" alt="X11" width="20%"/>
-<img src="../screenshots/X11/4.png" alt="X11" width="20%"/>
-<img src="../screenshots/X11/5.png" alt="X11" width="20%"/>
-<img src="../screenshots/X11/6.png" alt="X11" width="20%"/>
-<img src="../screenshots/X11/7.png" alt="X11" width="20%"/>
-<img src="../screenshots/X11/8.png" alt="X11" width="20%"/>
+<img src="screenshots/X11/1.png" alt="X11" width="75%"/>
+<img src="screenshots/X11/2.png" alt="X11" width="75%"/>
+<img src="screenshots/X11/3.png" alt="X11" width="75%"/>
+<img src="screenshots/X11/4.png" alt="X11" width="75%"/>
+<img src="screenshots/X11/5.png" alt="X11" width="75%"/>
+<img src="screenshots/X11/6.png" alt="X11" width="75%"/>
+<img src="screenshots/X11/7.png" alt="X11" width="75%"/>
+<img src="screenshots/X11/8.png" alt="X11" width="75%"/>
 </td>
 </tr>
 </table>
