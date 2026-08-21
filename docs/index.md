@@ -108,7 +108,7 @@ void message_box(__GUI_MENU__) {
 
 void web_box(__GUI_MENU__) {
  gui_info ui = {0};
- gui_webview(&ui, "Webview", "http://www.faqs.org", 800, 300);
+ gui_webview(&ui, "Webview", "http://www.faqs.org", 800, 320);
  gui_webactive(ui);
  gui_webdestroy(ui);
 }
@@ -169,34 +169,34 @@ int main(int argc, char **argv) {
 </tr>
 <tr>
 <td>
-<img src="screenshots/macOS/1.png" alt="macOS" width="75%"/>
-<img src="screenshots/macOS/2.png" alt="macOS" width="75%"/>
-<img src="screenshots/macOS/3.png" alt="macOS" width="75%"/>
-<img src="screenshots/macOS/4.png" alt="macOS" width="75%"/>
-<img src="screenshots/macOS/5.png" alt="macOS" width="75%"/>
-<img src="screenshots/macOS/6.png" alt="macOS" width="75%"/>
-<img src="screenshots/macOS/7.png" alt="macOS" width="75%"/>
-<img src="screenshots/macOS/8.png" alt="macOS" width="75%"/>
+<img src="screenshots/macOS/1.png" alt="macOS" width="320" height="200"/>
+<img src="screenshots/macOS/2.png" alt="macOS" width="320" height="200"/>
+<img src="screenshots/macOS/3.png" alt="macOS" width="320" height="200"/>
+<img src="screenshots/macOS/4.png" alt="macOS" width="320" height="200"/>
+<img src="screenshots/macOS/5.png" alt="macOS" width="320" height="200"/>
+<img src="screenshots/macOS/6.png" alt="macOS" width="320" height="200"/>
+<img src="screenshots/macOS/7.png" alt="macOS" width="320" height="200"/>
+<img src="screenshots/macOS/8.png" alt="macOS" width="320" height="200"/>
 </td>
 <td>
-<img src="screenshots/Windows/1.png" alt="Windows" width="75%"/>
-<img src="screenshots/Windows/2.png" alt="Windows" width="75%"/>
-<img src="screenshots/Windows/3.png" alt="Windows" width="75%"/>
-<img src="screenshots/Windows/4.png" alt="Windows" width="75%"/>
-<img src="screenshots/Windows/5.png" alt="Windows" width="75%"/>
-<img src="screenshots/Windows/6.png" alt="Windows" width="75%"/>
-<img src="screenshots/Windows/7.png" alt="Windows" width="75%"/>
-<img src="screenshots/Windows/8.png" alt="Windows" width="75%"/>
+<img src="screenshots/Windows/1.png" alt="Windows" width="320" height="200"/>
+<img src="screenshots/Windows/2.png" alt="Windows" width="320" height="200"/>
+<img src="screenshots/Windows/3.png" alt="Windows" width="320" height="200"/>
+<img src="screenshots/Windows/4.png" alt="Windows" width="320" height="200"/>
+<img src="screenshots/Windows/5.png" alt="Windows" width="320" height="200"/>
+<img src="screenshots/Windows/6.png" alt="Windows" width="320" height="200"/>
+<img src="screenshots/Windows/7.png" alt="Windows" width="320" height="200"/>
+<img src="screenshots/Windows/8.png" alt="Windows" width="320" height="200"/>
 </td>
 <td>
-<img src="screenshots/X11/1.png" alt="X11" width="75%"/>
-<img src="screenshots/X11/2.png" alt="X11" width="75%"/>
-<img src="screenshots/X11/3.png" alt="X11" width="75%"/>
-<img src="screenshots/X11/4.png" alt="X11" width="75%"/>
-<img src="screenshots/X11/5.png" alt="X11" width="75%"/>
-<img src="screenshots/X11/6.png" alt="X11" width="75%"/>
-<img src="screenshots/X11/7.png" alt="X11" width="75%"/>
-<img src="screenshots/X11/8.png" alt="X11" width="75%"/>
+<img src="screenshots/X11/1.png" alt="X11" width="320" height="200"/>
+<img src="screenshots/X11/2.png" alt="X11" width="320" height="200"/>
+<img src="screenshots/X11/3.png" alt="X11" width="320" height="200"/>
+<img src="screenshots/X11/4.png" alt="X11" width="320" height="200"/>
+<img src="screenshots/X11/5.png" alt="X11" width="320" height="200"/>
+<img src="screenshots/X11/6.png" alt="X11" width="320" height="200"/>
+<img src="screenshots/X11/7.png" alt="X11" width="320" height="200"/>
+<img src="screenshots/X11/8.png" alt="X11" width="320" height="200"/>
 </td>
 </tr>
 </table>

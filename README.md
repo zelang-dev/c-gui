@@ -169,34 +169,34 @@ int main(int argc, char **argv) {
 </tr>
 <tr>
 <td>
-<img src="docs/screenshots/macOS/1.png" alt="macOS" width="20%"/>
-<img src="docs/screenshots/macOS/2.png" alt="macOS" width="20%"/>
-<img src="docs/screenshots/macOS/3.png" alt="macOS" width="20%"/>
-<img src="docs/screenshots/macOS/4.png" alt="macOS" width="20%"/>
-<img src="docs/screenshots/macOS/5.png" alt="macOS" width="20%"/>
-<img src="docs/screenshots/macOS/6.png" alt="macOS" width="20%"/>
-<img src="docs/screenshots/macOS/7.png" alt="macOS" width="20%"/>
-<img src="docs/screenshots/macOS/8.png" alt="macOS" width="20%"/>
+<img src="docs/screenshots/macOS/1.png" alt="macOS" width="320" height="200"/>
+<img src="docs/screenshots/macOS/2.png" alt="macOS" width="320" height="200"/>
+<img src="docs/screenshots/macOS/3.png" alt="macOS" width="320" height="200"/>
+<img src="docs/screenshots/macOS/4.png" alt="macOS" width="320" height="200"/>
+<img src="docs/screenshots/macOS/5.png" alt="macOS" width="320" height="200"/>
+<img src="docs/screenshots/macOS/6.png" alt="macOS" width="320" height="200"/>
+<img src="docs/screenshots/macOS/7.png" alt="macOS" width="320" height="200"/>
+<img src="docs/screenshots/macOS/8.png" alt="macOS" width="320" height="200"/>
 </td>
 <td>
-<img src="docs/screenshots/Windows/1.png" alt="Windows" width="20%"/>
-<img src="docs/screenshots/Windows/2.png" alt="Windows" width="20%"/>
-<img src="docs/screenshots/Windows/3.png" alt="Windows" width="20%"/>
-<img src="docs/screenshots/Windows/4.png" alt="Windows" width="20%"/>
-<img src="docs/screenshots/Windows/5.png" alt="Windows" width="20%"/>
-<img src="docs/screenshots/Windows/6.png" alt="Windows" width="20%"/>
-<img src="docs/screenshots/Windows/7.png" alt="Windows" width="20%"/>
-<img src="docs/screenshots/Windows/8.png" alt="Windows" width="20%"/>
+<img src="docs/screenshots/Windows/1.png" alt="Windows" width="320" height="200"/>
+<img src="docs/screenshots/Windows/2.png" alt="Windows" width="320" height="200"/>
+<img src="docs/screenshots/Windows/3.png" alt="Windows" width="320" height="200"/>
+<img src="docs/screenshots/Windows/4.png" alt="Windows" width="320" height="200"/>
+<img src="docs/screenshots/Windows/5.png" alt="Windows" width="320" height="200"/>
+<img src="docs/screenshots/Windows/6.png" alt="Windows" width="320" height="200"/>
+<img src="docs/screenshots/Windows/7.png" alt="Windows" width="320" height="200"/>
+<img src="docs/screenshots/Windows/8.png" alt="Windows" width="320" height="200"/>
 </td>
 <td>
-<img src="docs/screenshots/X11/1.png" alt="X11" width="20%"/>
-<img src="docs/screenshots/X11/2.png" alt="X11" width="20%"/>
-<img src="docs/screenshots/X11/3.png" alt="X11" width="20%"/>
-<img src="docs/screenshots/X11/4.png" alt="X11" width="20%"/>
-<img src="docs/screenshots/X11/5.png" alt="X11" width="20%"/>
-<img src="docs/screenshots/X11/6.png" alt="X11" width="20%"/>
-<img src="docs/screenshots/X11/7.png" alt="X11" width="20%"/>
-<img src="docs/screenshots/X11/8.png" alt="X11" width="20%"/>
+<img src="docs/screenshots/X11/1.png" alt="X11" width="320" height="200"/>
+<img src="docs/screenshots/X11/2.png" alt="X11" width="320" height="200"/>
+<img src="docs/screenshots/X11/3.png" alt="X11" width="320" height="200"/>
+<img src="docs/screenshots/X11/4.png" alt="X11" width="320" height="200"/>
+<img src="docs/screenshots/X11/5.png" alt="X11" width="320" height="200"/>
+<img src="docs/screenshots/X11/6.png" alt="X11" width="320" height="200"/>
+<img src="docs/screenshots/X11/7.png" alt="X11" width="320" height="200"/>
+<img src="docs/screenshots/X11/8.png" alt="X11" width="320" height="200"/>
 </td>
 </tr>
 </table>
