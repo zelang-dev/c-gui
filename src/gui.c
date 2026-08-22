@@ -219,6 +219,14 @@ FORCEINLINE id cocoa_alloc_class(Class object) {
 	return cocoa_send((id)object, "alloc");
 }
 
+FORCEINLINE Class cocoa_constructor(const char *superclass, const char *alloc_name,
+	const char *sel_name, IMP imp, const char *types) {
+	Class new_class = objc_allocateClassPair(objc_getClass(superclass), alloc_name, 0);
+	class_addMethod(new_class, sel_getUid(sel_name), imp, types);
+	objc_registerClassPair(new_class);
+	return new_class;
+}
+
 FORCEINLINE id cocoa_init_window(int x, int y, int width, int height, int style, int backing, bool defer) {
 	return cocoa_window_func(cocoa_alloc("NSWindow"), sel_getUid("initWithContentRect:styleMask:backing:defer:"),
 		CGRectMake(x, y, width, height), style, backing, (BOOL)defer);

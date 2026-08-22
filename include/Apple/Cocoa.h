@@ -665,6 +665,7 @@ C_API NSTextField cocoa_text_field(id gui, ui_field_type kind, char *label, char
 	float x, float y, float width, uintptr_t tag);
 C_API NSButton cocoa_form_button(id window, char *title, char *action, float x, float y);
 C_API void cocoa_check(id window, NSButton, BOOL onOff);
+C_API Class cocoa_constructor(const char *superclass, const char *alloc_name, const char *sel_name, IMP imp, const char *types);
 
 #define dict(obj, key)	((id)obj), ((char *)(key))
 
