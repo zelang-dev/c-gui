@@ -371,12 +371,7 @@ static Widget add_command(Widget pw, _platform_cb cb, XtPointer closure, char *p
 FORCEINLINE int webview_create(gui_info *ui, webview_t *w) {
 	(void)ui;
 	(void)w;
-	return 0;
-}
-
-FORCEINLINE int webview_init(struct webview *w) {
-	(void)w;
-	return 0;
+	return 1;
 }
 
 FORCEINLINE int webview_loop(struct webview *w, int blocking) {

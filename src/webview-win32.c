@@ -848,12 +848,8 @@ static int webview_fix_ie_compat_mode() {
 	return 0;
 }
 
-FORCEINLINE int webview_create(gui_info *ui, webview_t *w) {
+int webview_create(gui_info *ui, webview_t *w) {
 	(void)ui;
-	return webview_init(w);
-}
-
-int webview_init(struct webview *w) {
 	WNDCLASSEX wc;
 	HINSTANCE hInstance;
 	DWORD style;

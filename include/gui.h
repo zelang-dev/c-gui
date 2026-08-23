@@ -570,7 +570,9 @@ struct gui_info_s {
 	MSG msg;
 	HINSTANCE hinst;
 #elif defined(__APPLE__)
-	id pool;
+	id pool, appDelObj;
+	WKWebView webView[1];
+	NSWindow window[1];
 	NSTextField statusLine;
 	Class delegate;
 	id delegate_instance;
@@ -705,10 +707,8 @@ struct webview_dispatch_arg {
 	void *arg;
 };
 
-WEBVIEW_API int webview_run(const char *title, const char *url, int width,
-	int height, int resizable);
+WEBVIEW_API int webview_run(const char *title, const char *url, int width, int height);
 
-WEBVIEW_API int webview_init(struct webview *w);
 WEBVIEW_API int webview_loop(struct webview *w, int blocking);
 WEBVIEW_API int webview_eval(struct webview *w, const char *js);
 WEBVIEW_API int webview_inject_css(struct webview *w, const char *css);

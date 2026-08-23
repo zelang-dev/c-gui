@@ -355,8 +355,9 @@ typedef id NSSavePanel;
 typedef id NSOpenPanel;
 typedef id NSData;
 typedef id NSPredicate;
+typedef id NSApplication;
 typedef Class WKWebViewConfiguration;
-typedef Class WKWebView;
+typedef id WKWebView;
 typedef id NSURLRequest;
 
 #define NSNotFound NSIntegerMax
@@ -382,7 +383,7 @@ typedef NSInteger(*cocoa_int_cb)(id, SEL);
 typedef NSInteger(*cocoa_sendwithint_cb)(id, SEL, id, NSInteger);
 typedef NSInteger(*cocoa_intwith_cb)(id, SEL, id);
 typedef NSSize(*cocoa_size_cb)(id, SEL);
-typedef NSRect *(*cocoa_rect_cb)(id, SEL);
+typedef NSRect (*cocoa_rect_cb)(id, SEL);
 typedef NSRange(*cocoa_range_cb)(id, SEL, id, NSInteger);
 
 typedef void(^IMP_INT)(NSInteger);
@@ -397,6 +398,7 @@ typedef void(*cocoa_model_cb)(id, SEL, id, IMP);
 typedef void(*cocoa_postid_cb)(id, SEL, id);
 typedef void(*cocoa_postpair_cb)(id, SEL, id, id);
 typedef void(*cocoa_postpairwith_cb)(id, SEL, id, NSInteger, id);
+typedef void(*cocoa_postwithint_cb)(id, SEL, id, NSInteger);
 typedef void(*cocoa_postany_cb)(id, SEL, void *);
 typedef void(*cocoa_postfunc_cb)(id, SEL, SEL);
 typedef void(*cocoa_postnotification_cb)(id, SEL, id, SEL, id, id);
@@ -485,6 +487,7 @@ C_API cocoa_postfunc_cb cocoa_postfunc_func;
 C_API cocoa_postnotification_cb cocoa_postnotification_func;
 C_API cocoa_postpair_cb cocoa_postpair_func;
 C_API cocoa_postpairwith_cb cocoa_postpairwith_func;
+C_API cocoa_postwithint_cb cocoa_postwithint_func;
 C_API cocoa_postid_cb cocoa_postid_func;
 C_API cocoa_model_cb cocoa_model_func;
 C_API cocoa_modelint_cb cocoa_modelint_func;
@@ -565,6 +568,8 @@ C_API NSString const NSDeviceResolution;
 C_API NSString const NSDeviceColorSpaceName;
 C_API NSString const NSDeviceBitsPerSample;
 
+#define NSMakeRect CGRectMake
+
 C_API void NSRectClipList(const NSRect *rects, int count);
 C_API void NSRectClip(NSRect rect);
 
@@ -619,10 +624,8 @@ C_API id cocoa_send_rect(id instance, const char *selector, float x, float y, fl
 C_API id cocoa_send_status(id instance, const char *selector, NSInteger code);
 C_API id cocoa_init(id instance);
 C_API id cocoa_alloc_class(Class object);
-C_API id cocoa_init_window(int x, int y, int width, int height, int style, int backing, bool defer);
+C_API id cocoa_window(int x, int y, int width, int height, int style, int backing, bool defer);
 C_API NSView cocoa_content_view(id window);
-C_API NSRect cocoa_frame(id window);
-C_API NSRect cocoa_bounds(id window);
 C_API NSEvent cocoa_next_event(id instance, unsigned long mask, id expiration, id mode, BOOL deqFlag);
 
 C_API NSString cocoa_str(const char *text);
@@ -665,7 +668,10 @@ C_API NSTextField cocoa_text_field(id gui, ui_field_type kind, char *label, char
 	float x, float y, float width, uintptr_t tag);
 C_API NSButton cocoa_form_button(id window, char *title, char *action, float x, float y);
 C_API void cocoa_check(id window, NSButton, BOOL onOff);
-C_API Class cocoa_constructor(const char *superclass, const char *alloc_name, const char *sel_name, IMP imp, const char *types);
+
+C_API Class cocoa_constructor(const char *superclass, const char *alloc_class, const char *sel_name,
+	IMP imp, const char *types);
+C_API WKWebView cocoa_webview_with(id window);
 
 #define dict(obj, key)	((id)obj), ((char *)(key))
 

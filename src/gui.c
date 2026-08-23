@@ -114,6 +114,7 @@ cocoa_postany_cb cocoa_postany_func = (cocoa_postany_cb)objc_msgSend;
 cocoa_postfunc_cb cocoa_postfunc_func = (cocoa_postfunc_cb)objc_msgSend;
 cocoa_postpair_cb cocoa_postpair_func = (cocoa_postpair_cb)objc_msgSend;
 cocoa_postpairwith_cb cocoa_postpairwith_func = (cocoa_postpairwith_cb)objc_msgSend;
+cocoa_postwithint_cb cocoa_postwithint_func = (cocoa_postwithint_cb)objc_msgSend;;
 cocoa_postid_cb cocoa_postid_func = (cocoa_postid_cb)objc_msgSend;
 cocoa_post_cb cocoa_post_func = (cocoa_post_cb)objc_msgSend;
 cocoa_model_cb cocoa_model_func = (cocoa_model_cb)objc_msgSend;
@@ -219,16 +220,17 @@ FORCEINLINE id cocoa_alloc_class(Class object) {
 	return cocoa_send((id)object, "alloc");
 }
 
-FORCEINLINE Class cocoa_constructor(const char *superclass, const char *alloc_name,
+FORCEINLINE Class cocoa_constructor(const char *superclass, const char *alloc_class,
 	const char *sel_name, IMP imp, const char *types) {
-	Class new_class = objc_allocateClassPair(objc_getClass(superclass), alloc_name, 0);
+	Class new_class = objc_allocateClassPair(objc_getClass(superclass), alloc_class, 0);
 	class_addMethod(new_class, sel_getUid(sel_name), imp, types);
 	objc_registerClassPair(new_class);
 	return new_class;
 }
 
-FORCEINLINE id cocoa_init_window(int x, int y, int width, int height, int style, int backing, bool defer) {
-	return cocoa_window_func(cocoa_alloc("NSWindow"), sel_getUid("initWithContentRect:styleMask:backing:defer:"),
+FORCEINLINE id cocoa_window(int x, int y, int width, int height, int style, int backing, bool defer) {
+	return cocoa_window_func(cocoa_alloc("NSWindow"),
+		sel_getUid("initWithContentRect:styleMask:backing:defer:"),
 		CGRectMake(x, y, width, height), style, backing, (BOOL)defer);
 }
 
@@ -425,6 +427,9 @@ static FORCEINLINE BOOL should_close(__GUI_MENU__) {
 	BOOL is_closing = NO;
 	gui_info *ui = nil;
 	object_getInstanceVariable(self, "gui_info", (void *)&ui);
+	if (!ui)
+		return YES;
+
 	if (ui == main_gui_info) {
 		is_closing = YES;
 		ui->app->running = NO;
@@ -500,7 +505,7 @@ static BOOL AppDel_didFinishLaunching(AppDelegate *self, SEL selector, id data) 
 	(void)selector;
 	(void)data;
 	/// Create an instance of the window.
-	self->window = cocoa_init_window(0, main_gui_info->height, main_gui_info->width, main_gui_info->height,
+	self->window = cocoa_window(0, main_gui_info->height, main_gui_info->width, main_gui_info->height,
 		(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
 			| NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable),
 		NSBackingStoreBuffered, YES);
@@ -542,6 +547,18 @@ static BOOL AppDel_didFinishLaunching(AppDelegate *self, SEL selector, id data) 
 	return YES;
 }
 
+static void webView_didFinishNavigation(AppDelegate *self, SEL selector, id data) {
+#ifdef USE_DEBUG
+	fprintf(stderr, "[ObjC]\t\t\tdidFinishNavigation()\n");
+#endif
+	cocoa_set_with(self->window, "setTitle:", (id)cocoa_str(main_gui_info->web->title));
+#ifdef USE_DEBUG
+	fprintf(stderr, "[ObjC]\t\t\tdidFinishNavigation() -> Updated title [%s]\n", main_gui_info->web->title);
+#endif
+}
+
+#include "webview-cocoa.c"
+
 static void cocoa_application(gui_info *ui) {
 	if (AppDelClass == NULL) {
 		AppDelClass = objc_allocateClassPair((Class)objc_getClass("NSObject"), "AppDelegate", 0);
@@ -549,7 +566,7 @@ static void cocoa_application(gui_info *ui) {
 			(IMP)AppDel_didFinishLaunching, "i@:@");
 		objc_registerClassPair(AppDelClass);
 
-		ui->pool = cocoa_get("NSAutoreleasePool", "new");
+		ui->pool = cocoa_new("NSAutoreleasePool");
 		cocoa_post("NSApplication", "sharedApplication");
 		cocoa_set(NSApp, "setActivationPolicy:", NSApplicationActivationPolicyRegular);
 		if (NSApp == NULL) {
@@ -557,9 +574,11 @@ static void cocoa_application(gui_info *ui) {
 			return;
 		}
 
-		id appDelObj = cocoa_init(cocoa_alloc("AppDelegate"));
-		cocoa_set_with(NSApp, "setDelegate:", appDelObj);
+		ui->appDelObj = cocoa_init(cocoa_alloc("AppDelegate"));
+		cocoa_set_with(NSApp, "setDelegate:", ui->appDelObj);
 		cocoa_select(NSApp, "run");
+		ui->webView[0] = nil;
+		ui->window[0] = nil;
 	}
 }
 
@@ -639,14 +658,6 @@ NSButton cocoa_form_button(id window, char *title, char *action, float x, float 
 
 FORCEINLINE NSView cocoa_content_view(id window) {
 	return (NSView)cocoa_send(window, "contentView");
-}
-
-FORCEINLINE NSRect cocoa_frame(id window) {
-	return *(NSRect*)cocoa_send(cocoa_send(window, "contentView"), "frame");
-}
-
-FORCEINLINE NSRect cocoa_bounds(id window) {
-	return *(NSRect*)cocoa_send(cocoa_send(window, "contentView"), "bounds");
 }
 
 FORCEINLINE void cocoa_check(id window, NSButton button, BOOL onOff) {
@@ -920,7 +931,30 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 		}
 
 		Class windelegate = objc_allocateClassPair(objc_getClass("NSObject"), "GuiDelegate", 0);
+		class_addProtocol(windelegate, objc_getProtocol("NSWindowDelegate"));
+		class_replaceMethod(windelegate, sel_getUid("windowWillClose:"),
+			(IMP)webview_window_will_close, "v@:@");
 		class_addMethod(windelegate, sel_getUid("windowShouldClose:"), (IMP)should_close, 0);
+		class_addProtocol(windelegate, objc_getProtocol("WKNavigationDelegate"));
+		class_addProtocol(windelegate, objc_getProtocol("WKUIDelegate"));
+		class_addMethod(windelegate,
+			sel_getUid("webView:didFinishNavigation:"),
+			(IMP)webView_didFinishNavigation, "i@:@");
+		class_addMethod(windelegate,
+			sel_getUid("webView:runOpenPanelWithParameters:"
+				"initiatedByFrame:completionHandler:"),
+			(IMP)run_open_panel, "v@:@@@?");
+		class_addMethod(windelegate,
+			sel_getUid("webView:runJavaScriptAlertPanelWithMessage:"
+				"initiatedByFrame:completionHandler:"),
+			(IMP)run_alert_panel, "v@:@@@?");
+		class_addMethod(windelegate,
+			sel_getUid("webView:runJavaScriptConfirmPanelWithMessage:"
+				"initiatedByFrame:completionHandler:"),
+			(IMP)run_confirmation_panel, "v@:@@@?");
+		class_addMethod(windelegate,
+			sel_getUid("webView:decidePolicyForNavigationResponse:decisionHandler:"),
+			(IMP)make_nav_policy_decision, "v@:@@?");
 
 		class_addIvar(windelegate, "gui_info", sizeof(gui_info *), rint(log2(sizeof(gui_info *))), "L");
 		objc_registerClassPair(windelegate);
@@ -940,10 +974,10 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 				return 0;
 		}
 
-		ui->pool = cocoa_get("NSAutoreleasePool", "new");
+		ui->pool = cocoa_new("NSAutoreleasePool");
 		int mask = (NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable);
-		ui->wnd = cocoa_init_window(ui->width,(main_gui_info->height - ui->height), ui->width, ui->height, (buffered == -1 ? mask & ~NSWindowStyleMaskResizable : mask),
-			NSBackingStoreBuffered, NO);
+		ui->wnd = cocoa_window(ui->width, (main_gui_info->height - ui->height), ui->width, ui->height,
+			(buffered == -1 ? mask & ~NSWindowStyleMaskResizable : mask), NSBackingStoreBuffered, NO);
 
 		Class c = objc_allocateClassPair((Class)objc_getClass("NSView"), "GuiView", 0);
 		class_addMethod(c, sel_getUid("windowShouldClose:"), (IMP)should_close, "c@:@");
@@ -977,8 +1011,6 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 
 	return (ui->wnd != nil && NSApp != nil && AppDelClass != nil);
 }
-
-#include "webview-cocoa.c"
 
 FORCEINLINE void gui_close(gui_info *ui) {
 	cocoa_select(ui->wnd, "close");
@@ -3494,8 +3526,13 @@ FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, in
 	ui->web->height = height;
 	ui->web->resizable = 1;
 	ui->web->debug = 1;
+#if defined(__APPLE__)
+	ui->webView[0] = main_gui_info->webView[0];
+	ui->window[0] = main_gui_info->window[0];
+	ui->delegate = main_gui_info->delegate;
+	main_gui_info->web->title = title;
+#endif
 	return webview_create(ui, ui->web);
-	//return webview_init(ui->web);
 }
 
 FORCEINLINE void gui_webactive(gui_info ui) {
@@ -3508,22 +3545,11 @@ FORCEINLINE void gui_webdestroy(gui_info ui) {
 }
 #endif
 
-WEBVIEW_API int webview_run(const char *title, const char *url, int width,
-	int height, int resizable) {
-	struct webview webview;
-	memset(&webview, 0, sizeof(webview));
-	webview.title = title;
-	webview.url = url;
-	webview.width = width;
-	webview.height = height;
-	webview.resizable = resizable;
-	int r = webview_init(&webview);
-	if (r != 0) {
-		return r;
-	}
-	while (webview_loop(&webview, 1) == 0) {
-	}
-	webview_exit(&webview);
+WEBVIEW_API int webview_run(const char *title, const char *url, int width, int height) {
+	gui_info ui = {0};
+	gui_webview(&ui, title, url, width, height);
+	gui_webactive(ui);
+	gui_webdestroy(ui);
 	return 0;
 }
 
