@@ -261,13 +261,14 @@ int webview_create(gui_info *ui, webview_t *w) {
 #ifdef USE_DEBUG
 		fprintf(stderr, "[ObjC]\t\t\tCreating WebView\n");
 #endif
-
-		ui->window[0] = cocoa_window(0, 0, w->width, w->height, (NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable), NSBackingStoreBuffered, NO);
 		if (!ui->window[0]) {
+			ui->window[0] = cocoa_window(0, 0, w->width, w->height, (NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable), NSBackingStoreBuffered, NO);
+			if (!ui->window[0]) {
 #ifdef USE_DEBUG
-			fprintf(stderr, "[ObjC]\t\t\twebview_create() -> Failed to create NSWindow\n");
+				fprintf(stderr, "[ObjC]\t\t\twebview_create() -> Failed to create NSWindow\n");
 #endif
-			return false;
+				return false;
+			}
 		}
 
 		CGRect r = CGRectMake(0, 0, w->width, w->height);
@@ -327,6 +328,7 @@ int webview_create(gui_info *ui, webview_t *w) {
 }
 
 int webview_loop(struct webview *w, int blocking) {
+	cocoa_set(cocoa_send(w->priv.window, "contentView"), "setNeedsDisplay:", YES);
 	id until = (blocking ? ((id(*)(id, SEL))objc_msgSend)((id)objc_getClass("NSDate"),
 		sel_getUid("distantFuture"))
 		: ((id(*)(id, SEL))objc_msgSend)((id)objc_getClass("NSDate"),

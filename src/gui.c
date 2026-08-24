@@ -501,6 +501,10 @@ static void verify_form(__GUI_FIELD__) {
 	cocoa_select(ui->app->wnd, "close");
 }
 
+static BOOL AppDel_shouldTerminateAfterLastWindowClosed(AppDelegate *self, SEL selector, id data) {
+	return YES;
+}
+
 static BOOL AppDel_didFinishLaunching(AppDelegate *self, SEL selector, id data) {
 	(void)selector;
 	(void)data;
@@ -564,6 +568,8 @@ static void cocoa_application(gui_info *ui) {
 		AppDelClass = objc_allocateClassPair((Class)objc_getClass("NSObject"), "AppDelegate", 0);
 		class_addMethod(AppDelClass, sel_getUid("applicationDidFinishLaunching:"),
 			(IMP)AppDel_didFinishLaunching, "i@:@");
+		class_addMethod(AppDelClass, sel_getUid("applicationShouldTerminateAfterLastWindowClosed:"),
+			(IMP)AppDel_shouldTerminateAfterLastWindowClosed, "i@:@");
 		objc_registerClassPair(AppDelClass);
 
 		ui->pool = cocoa_new("NSAutoreleasePool");
@@ -1030,6 +1036,7 @@ FORCEINLINE void gui_close(gui_info *ui) {
 
 FORCEINLINE int gui_handler(gui_info *ui) {
 	ui->app->running = YES;
+	cocoa_select(NSApp, "finishLaunching");
 	cocoa_select(NSApp, "run");
 	return 0;
 }
