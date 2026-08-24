@@ -419,7 +419,10 @@ static FORCEINLINE void terminate_handler(__GUI_MENU__) {
 		main_gui_info->web->priv.should_exit = 1;
 	} else if (!main_gui_shutdown) {
 		main_gui_shutdown = true;
-		cocoa_select(self, "close");
+		if (main_gui_info->window[0])
+			cocoa_select(main_gui_info->window[0], "close");
+
+		cocoa_select(main_gui_info->wnd, "close");
 		cocoa_set_with(NSApp, "stop:", nil);
 	} else {
 		cocoa_set_with(NSApp, "terminate:", self);
@@ -560,9 +563,11 @@ static void webView_didFinishNavigation(AppDelegate *self, SEL selector, id data
 #ifdef USE_DEBUG
 	fprintf(stderr, "[ObjC]\t\t\tdidFinishNavigation()\n");
 #endif
-	cocoa_set_with(self->window, "setTitle:", (id)cocoa_str(main_gui_info->web->title));
+	NSString theTitle = (NSString)cocoa_send(data, "title");
+	webview_t *w = (webview_t *)objc_getAssociatedObject((id)self, "webview");
+	cocoa_set_with(w->priv.window, "setTitle:", (id)theTitle);
 #ifdef USE_DEBUG
-	fprintf(stderr, "[ObjC]\t\t\tdidFinishNavigation() -> Updated title [%s]\n", main_gui_info->web->title);
+	fprintf(stderr, "[ObjC]\t\t\tdidFinishNavigation() -> Updated title [%s]\n", cocoa_tochar(theTitle));
 #endif
 }
 
@@ -1025,7 +1030,9 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 
 FORCEINLINE void gui_close(gui_info *ui) {
 	cocoa_select(ui->wnd, "close");
-	cocoa_select(ui->pool, "drain");
+	if (ui->bar_info)
+		cocoa_select(ui->pool, "drain");
+
 	objc_disposeClassPair(ui->delegate);
 	if (ui->bar_info) {
 		free(ui->bar_info->menus);
