@@ -528,9 +528,8 @@ typedef struct {
 	ui_menu_t hMenubar;
 } menu_bar_t;
 
-typedef struct webview webview;
-typedef webview webview_t;
-typedef void (*webview_external_invoke_cb_t)(struct webview *w,
+typedef struct webview webview_t;
+typedef void (*webview_external_invoke_cb_t)(webview_t *w,
 	const char *arg);
 struct webview {
 	const char *url;
@@ -698,32 +697,31 @@ enum webview_dialog_flag {
 	WEBVIEW_DIALOG_FLAG_ALERT_MASK = (3 << 1),
 };
 
-typedef void (*webview_dispatch_fn)(struct webview *w, void *arg);
+typedef void (*webview_dispatch_fn)(webview_t *w, void *arg);
 typedef struct webview_dispatch_arg webview_dispatch_arg;
 
 struct webview_dispatch_arg {
 	webview_dispatch_fn fn;
-	struct webview *w;
+	webview_t *w;
 	void *arg;
 };
 
 WEBVIEW_API int webview_run(const char *title, const char *url, int width, int height);
 
-WEBVIEW_API int webview_loop(struct webview *w, int blocking);
-WEBVIEW_API int webview_eval(struct webview *w, const char *js);
-WEBVIEW_API int webview_inject_css(struct webview *w, const char *css);
-WEBVIEW_API void webview_set_title(struct webview *w, const char *title);
-WEBVIEW_API void webview_set_fullscreen(struct webview *w, int fullscreen);
-WEBVIEW_API void webview_set_color(struct webview *w, uint8_t r, uint8_t g,
+WEBVIEW_API int webview_loop(webview_t *w, int blocking);
+WEBVIEW_API int webview_eval(webview_t *w, const char *js);
+WEBVIEW_API int webview_inject_css(webview_t *w, const char *css);
+WEBVIEW_API void webview_set_title(webview_t *w, const char *title);
+WEBVIEW_API void webview_set_fullscreen(webview_t *w, int fullscreen);
+WEBVIEW_API void webview_set_color(webview_t *w, uint8_t r, uint8_t g,
 	uint8_t b, uint8_t a);
-WEBVIEW_API void webview_dialog(struct webview *w,
+WEBVIEW_API void webview_dialog(webview_t *w,
 	enum webview_dialog_type dlgtype, int flags,
 	const char *title, const char *arg,
 	char *result, size_t resultsz);
-WEBVIEW_API void webview_dispatch(struct webview *w, webview_dispatch_fn fn,
+WEBVIEW_API void webview_dispatch(webview_t *w, webview_dispatch_fn fn,
 	void *arg);
-WEBVIEW_API void webview_terminate(struct webview *w);
-WEBVIEW_API void webview_exit(struct webview *w);
+WEBVIEW_API void webview_exit(webview_t *w);
 WEBVIEW_API void webview_debug(const char *format, ...);
 WEBVIEW_API void webview_print_log(const char *s);
 

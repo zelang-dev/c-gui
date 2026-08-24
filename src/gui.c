@@ -413,8 +413,13 @@ FORCEINLINE BOOL cocoa_str_has(NSString str, char *match) {
 }
 
 static FORCEINLINE void terminate_handler(__GUI_MENU__) {
-	if (!main_gui_shutdown) {
+	if (!main_gui_shutdown && !main_gui_info->bar_info && main_gui_info->web->priv.webview){
 		main_gui_shutdown = true;
+		cocoa_select(main_gui_info->window[0], "close");
+		main_gui_info->web->priv.should_exit = 1;
+	} else if (!main_gui_shutdown) {
+		main_gui_shutdown = true;
+		cocoa_select(self, "close");
 		cocoa_set_with(NSApp, "stop:", nil);
 	} else {
 		cocoa_set_with(NSApp, "terminate:", self);
@@ -427,8 +432,10 @@ static FORCEINLINE BOOL should_close(__GUI_MENU__) {
 	BOOL is_closing = NO;
 	gui_info *ui = nil;
 	object_getInstanceVariable(self, "gui_info", (void *)&ui);
-	if (!ui)
+	if (!ui) {
+		main_gui_shutdown = true;
 		return YES;
+	}
 
 	if (ui == main_gui_info) {
 		is_closing = YES;
@@ -515,8 +522,6 @@ static BOOL AppDel_didFinishLaunching(AppDelegate *self, SEL selector, id data) 
 		NSBackingStoreBuffered, YES);
 
 	main_gui_info->wnd = self->window;
-	id view = cocoa_send_rect(cocoa_alloc("View"), "initWithFrame:", 0, main_gui_info->height, main_gui_info->width, main_gui_info->height);
-	cocoa_set_with(self->window, "setContentView:", view);
 	cocoa_select(self->window, "becomeFirstResponder");
 	cocoa_set_with(self->window, "makeKeyAndOrderFront:", (id)self);
 	cocoa_set(self->window, "setAutorecalculatesKeyViewLoop:", YES);
@@ -2864,8 +2869,6 @@ int gui_handler(gui_info *ui) {
 						break;
 				}
 			case Expose:
-				if (ui->bar_info == NULL)
-					trace;
 				XGetWindowAttributes(ui->dpy, ui->win, &(ui->bar_info->gwa));
 				glViewport(0, 0, ui->bar_info->gwa.width, ui->bar_info->gwa.height);
 				error = draw(ui->bar_info);
@@ -3534,6 +3537,13 @@ FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, in
 	ui->web->resizable = 1;
 	ui->web->debug = 1;
 #if defined(__APPLE__)
+	if (!main_gui_info->bar_info) {
+		cocoa_set_with(main_gui_info->wnd, "setTitle:", (id)cocoa_str(main_gui_info->title));
+		main_gui_info->window[0] = main_gui_info->wnd;
+		ui->web->width = main_gui_info->width;
+		ui->web->height = main_gui_info->height;
+	}
+
 	ui->webView[0] = main_gui_info->webView[0];
 	ui->window[0] = main_gui_info->window[0];
 	ui->delegate = main_gui_info->delegate;
@@ -3543,8 +3553,8 @@ FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, in
 }
 
 FORCEINLINE void gui_webactive(gui_info ui) {
-	while (webview_loop(ui.web, 1) == 0) {
-	}
+	main_gui_info->web->priv = ui.web->priv;
+	webview_loop(ui.web, 1);
 }
 
 FORCEINLINE void gui_webdestroy(gui_info ui) {
@@ -3591,7 +3601,7 @@ static int webview_js_encode(const char *s, char *esc, size_t n) {
 	return r;
 }
 
-WEBVIEW_API int webview_inject_css(struct webview *w, const char *css) {
+WEBVIEW_API int webview_inject_css(webview_t *w, const char *css) {
 	int n = webview_js_encode(css, NULL, 0);
 	char *esc = (char *)calloc(1, sizeof(CSS_INJECT_FUNCTION) + n + 4);
 	if (esc == NULL) {

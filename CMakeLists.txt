@@ -6,7 +6,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
 endif()
 
 project(gui
-	VERSION 0.0.2
+	VERSION 0.1.0
 	DESCRIPTION "A minimal cross-platform `C` rapid GUI Application Builder."
     LANGUAGES C
 )

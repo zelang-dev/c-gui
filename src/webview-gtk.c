@@ -28,7 +28,7 @@ static void external_message_received_cb(WebKitUserContentManager *m,
                                          WebKitJavascriptResult *r,
                                          gpointer arg) {
   (void)m;
-  struct webview *w = (struct webview *)arg;
+  webview_t *w = (webview_t *)arg;
   if (w->external_invoke_cb == NULL) {
     return;
   }
@@ -56,7 +56,7 @@ static void external_message_received_cb(WebKitUserContentManager *m,
 static void webview_load_changed_cb(WebKitWebView *webview,
                                     WebKitLoadEvent event, gpointer arg) {
   (void)webview;
-  struct webview *w = (struct webview *)arg;
+  webview_t *w = (webview_t *)arg;
   if (event == WEBKIT_LOAD_STARTED) {
     w->priv.ready = 0;
   } else if (event == WEBKIT_LOAD_FINISHED) {
@@ -70,8 +70,8 @@ static void webview_load_changed_cb(WebKitWebView *webview,
 
 static void webview_destroy_cb(GtkWidget *widget, gpointer arg) {
   (void)widget;
-  struct webview *w = (struct webview *)arg;
-  webview_terminate(w);
+  webview_t *w = (webview_t *)arg;
+  w->priv.should_exit = 1;
 }
 
 static gboolean webview_context_menu_cb(WebKitWebView *webview,
@@ -91,7 +91,7 @@ static void noLogHandler(const gchar *domain, GLogLevelFlags level, const gchar 
   return;
 }
 
-WEBVIEW_API int webview_init(struct webview *w) {
+WEBVIEW_API int webview_init(webview_t *w) {
 
   if (!w->debug) {
     g_log_set_handler("GLib", G_LOG_LEVEL_MASK | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION, noLogHandler, NULL);
@@ -157,16 +157,16 @@ WEBVIEW_API int webview_init(struct webview *w) {
   return 0;
 }
 
-WEBVIEW_API int webview_loop(struct webview *w, int blocking) {
+WEBVIEW_API int webview_loop(webview_t *w, int blocking) {
   gtk_main_iteration_do(blocking);
   return w->priv.should_exit;
 }
 
-WEBVIEW_API void webview_set_title(struct webview *w, const char *title) {
+WEBVIEW_API void webview_set_title(webview_t *w, const char *title) {
   gtk_window_set_title(GTK_WINDOW(w->priv.window), title);
 }
 
-WEBVIEW_API void webview_set_fullscreen(struct webview *w, int fullscreen) {
+WEBVIEW_API void webview_set_fullscreen(webview_t *w, int fullscreen) {
   if (fullscreen) {
     gtk_window_fullscreen(GTK_WINDOW(w->priv.window));
   } else {
@@ -174,14 +174,14 @@ WEBVIEW_API void webview_set_fullscreen(struct webview *w, int fullscreen) {
   }
 }
 
-WEBVIEW_API void webview_set_color(struct webview *w, uint8_t r, uint8_t g,
+WEBVIEW_API void webview_set_color(webview_t *w, uint8_t r, uint8_t g,
                                    uint8_t b, uint8_t a) {
   GdkRGBA color = {r / 255.0, g / 255.0, b / 255.0, a / 255.0};
   webkit_web_view_set_background_color(WEBKIT_WEB_VIEW(w->priv.webview),
                                        &color);
 }
 
-WEBVIEW_API void webview_dialog(struct webview *w,
+WEBVIEW_API void webview_dialog(webview_t *w,
                                 enum webview_dialog_type dlgtype, int flags,
                                 const char *title, const char *arg,
                                 char *result, size_t resultsz) {
@@ -239,11 +239,11 @@ static void webview_eval_finished(GObject *object, GAsyncResult *result,
                                   gpointer userdata) {
   (void)object;
   (void)result;
-  struct webview *w = (struct webview *)userdata;
+  webview_t *w = (webview_t *)userdata;
   w->priv.js_busy = 0;
 }
 
-WEBVIEW_API int webview_eval(struct webview *w, const char *js) {
+WEBVIEW_API int webview_eval(webview_t *w, const char *js) {
   while (w->priv.ready == 0) {
     g_main_context_iteration(NULL, TRUE);
   }
@@ -257,7 +257,7 @@ WEBVIEW_API int webview_eval(struct webview *w, const char *js) {
 }
 
 static gboolean webview_dispatch_wrapper(gpointer userdata) {
-  struct webview *w = (struct webview *)userdata;
+  webview_t *w = (webview_t *)userdata;
   for (;;) {
     struct webview_dispatch_arg *arg =
         (struct webview_dispatch_arg *)g_async_queue_try_pop(w->priv.queue);
@@ -270,7 +270,7 @@ static gboolean webview_dispatch_wrapper(gpointer userdata) {
   return FALSE;
 }
 
-WEBVIEW_API void webview_dispatch(struct webview *w, webview_dispatch_fn fn,
+WEBVIEW_API void webview_dispatch(webview_t *w, webview_dispatch_fn fn,
                                   void *arg) {
   struct webview_dispatch_arg *context =
       (struct webview_dispatch_arg *)g_new(struct webview_dispatch_arg, 1);
@@ -285,11 +285,7 @@ WEBVIEW_API void webview_dispatch(struct webview *w, webview_dispatch_fn fn,
   g_async_queue_unlock(w->priv.queue);
 }
 
-WEBVIEW_API void webview_terminate(struct webview *w) {
-  w->priv.should_exit = 1;
-}
-
-WEBVIEW_API void webview_exit(struct webview *w) { (void)w; }
+WEBVIEW_API void webview_exit(webview_t *w) { (void)w; }
 WEBVIEW_API void webview_print_log(const char *s) {
   fprintf(stderr, "%s\n", s);
 }

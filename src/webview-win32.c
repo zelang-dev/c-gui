@@ -143,7 +143,7 @@ WV_JS_Invoke(IDispatch FAR *This, DISPID dispIdMember, REFIID riid, LCID lcid,
 	EXCEPINFO *pExcepInfo, UINT *puArgErr) {
 	size_t offset = (size_t) & ((_IOleClientSiteEx *)NULL)->external;
 	_IOleClientSiteEx *ex = (_IOleClientSiteEx *)((char *)(This)-offset);
-	struct webview *w = (struct webview *)GetWindowLongPtr(
+	webview_t *w = (webview_t *)GetWindowLongPtr(
 		ex->inplace.frame.window, GWLP_USERDATA);
 	if (pDispParams->cArgs == 1 && pDispParams->rgvarg[0].vt == VT_BSTR) {
 		BSTR bstr = pDispParams->rgvarg[0].bstrVal;
@@ -555,7 +555,7 @@ static HRESULT STDMETHODCALLTYPE SP_QueryService(IServiceProvider FAR *This, REF
 }
 static IServiceProviderVtbl MyServiceProviderTable = {SP_QueryInterface, SP_AddRef, SP_Release, SP_QueryService};
 
-static void UnEmbedBrowserObject(struct webview *w) {
+static void UnEmbedBrowserObject(webview_t *w) {
 	if (w->priv.browser != NULL) {
 		(*w->priv.browser)->lpVtbl->Close(*w->priv.browser, OLECLOSE_NOSAVE);
 		(*w->priv.browser)->lpVtbl->Release(*w->priv.browser);
@@ -564,7 +564,7 @@ static void UnEmbedBrowserObject(struct webview *w) {
 	}
 }
 
-static int EmbedBrowserObject(struct webview *w) {
+static int EmbedBrowserObject(webview_t *w) {
 	RECT rect;
 	IWebBrowser2 *webBrowser2 = NULL;
 	LPCLASSFACTORY pClassFactory = NULL;
@@ -643,7 +643,7 @@ error:
 }
 
 #define WEBVIEW_DATA_URL_PREFIX "data:text/html,"
-static int DisplayHTMLPage(struct webview *w) {
+static int DisplayHTMLPage(webview_t *w) {
 	IWebBrowser2 *webBrowser2;
 	VARIANT myURL;
 	LPDISPATCH lpDispatch;
@@ -753,7 +753,7 @@ static int DisplayHTMLPage(struct webview *w) {
 static int webview_webview2_enabled = 0;
 
 static void WebView2Callback(webview2 *wv, const char *message, void *context) {
-	struct webview *w = (struct webview *)context;
+	webview_t *w = (webview_t *)context;
 	if (w != NULL) {
 		if (w->external_invoke_cb != NULL) {
 			w->external_invoke_cb(w, message);
@@ -763,11 +763,11 @@ static void WebView2Callback(webview2 *wv, const char *message, void *context) {
 
 static LRESULT CALLBACK wndproc(HWND hwnd, UINT uMsg, WPARAM wParam,
 	LPARAM lParam) {
-	struct webview *w = (struct webview *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	webview_t *w = (webview_t *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	RECT rect;
 	switch (uMsg) {
 		case WM_CREATE:
-			w = (struct webview *)((CREATESTRUCT *)lParam)->lpCreateParams;
+			w = (webview_t *)((CREATESTRUCT *)lParam)->lpCreateParams;
 			w->priv.hwnd = hwnd;
 			if (webview_webview2_enabled) {
 				w->priv.webview2 = CreateWebView2(hwnd, w->url, w->debug);
@@ -931,7 +931,7 @@ int webview_create(gui_info *ui, webview_t *w) {
 	return 0;
 }
 
-int webview_loop(struct webview *w, int blocking) {
+int webview_loop(webview_t *w, int blocking) {
 	MSG msg;
 	if (blocking) {
 		if (GetMessage(&msg, 0, 0, 0) < 0) return 0;
@@ -970,7 +970,7 @@ int webview_loop(struct webview *w, int blocking) {
 	return 0;
 }
 
-int webview_eval(struct webview *w, const char *js) {
+int webview_eval(webview_t *w, const char *js) {
 	if (webview_webview2_enabled) {
 		webview2 *pwv2 = w->priv.webview2;
 		if (pwv2->ready) {
@@ -1054,16 +1054,16 @@ int webview_eval(struct webview *w, const char *js) {
 	return 0;
 }
 
-FORCEINLINE void webview_dispatch(struct webview *w, webview_dispatch_fn fn,
+FORCEINLINE void webview_dispatch(webview_t *w, webview_dispatch_fn fn,
 	void *arg) {
 	PostMessageW(w->priv.hwnd, WM_WEBVIEW_DISPATCH, (WPARAM)fn, (LPARAM)arg);
 }
 
-FORCEINLINE void webview_set_title(struct webview *w, const char *title) {
+FORCEINLINE void webview_set_title(webview_t *w, const char *title) {
 	SetWindowText(w->priv.hwnd, title);
 }
 
-void webview_set_fullscreen(struct webview *w, int fullscreen) {
+void webview_set_fullscreen(webview_t *w, int fullscreen) {
 	if (w->priv.is_fullscreen == !!fullscreen) {
 		return;
 	}
@@ -1103,7 +1103,7 @@ void webview_set_fullscreen(struct webview *w, int fullscreen) {
 	}
 }
 
-FORCEINLINE void webview_set_color(struct webview *w, uint8_t r, uint8_t g,
+FORCEINLINE void webview_set_color(webview_t *w, uint8_t r, uint8_t g,
 	uint8_t b, uint8_t a) {
 	HBRUSH brush = CreateSolidBrush(RGB(r, g, b));
 	SetClassLongPtr(w->priv.hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)brush);
@@ -1193,7 +1193,7 @@ DEFINE_GUID(IID_IFileSaveDialog, 0x84bccd23, 0x5fde, 0x4cdb, 0xae, 0xa4, 0xaf,
 	0x64, 0xb8, 0x3d, 0x78, 0xab);
 #endif
 
-WEBVIEW_API void webview_dialog(struct webview *w,
+WEBVIEW_API void webview_dialog(webview_t *w,
 	enum webview_dialog_type dlgtype, int flags,
 	const char *title, const char *arg,
 	char *result, size_t resultsz) {
@@ -1280,9 +1280,8 @@ WEBVIEW_API void webview_dialog(struct webview *w,
 	}
 }
 
-FORCEINLINE void webview_terminate(struct webview *w) { PostQuitMessage(0); }
 
-FORCEINLINE void webview_exit(struct webview *w) {
+FORCEINLINE void webview_exit(webview_t *w) {
 	DestroyWindow(w->priv.hwnd);
 	OleUninitialize();
 }

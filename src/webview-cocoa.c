@@ -41,13 +41,14 @@ static const char *webview_check_url(const char *url) {
 }
 
 static void webview_window_will_close(id self, SEL cmd, id notification) {
-	struct webview *w = (struct webview *)objc_getAssociatedObject(self, "webview");
-	if (w)
-		webview_terminate(w);
+	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
+	if (w) {
+		w->priv.should_exit = 1;
+	}
 }
 
 static void webview_external_invoke(id self, SEL cmd, id contentController,	id message) {
-	struct webview *w = (struct webview *)objc_getAssociatedObject(contentController, "webview");
+	webview_t *w = (webview_t *)objc_getAssociatedObject(contentController, "webview");
 	if (w == NULL || w->external_invoke_cb == NULL) {
 		return;
 	}
@@ -99,7 +100,8 @@ static void run_save_panel(id self, SEL cmd, id download, id filename,
 static void run_confirmation_panel(id self, SEL cmd, id webView, id message,
 	id frame, void(^completionHandler)(bool)) {
 	id alert = cocoa_new("NSAlert");
-	cocoa_set_with(alert, "setIcon:", cocoa_get_with("NSImage", "imageNamed:", (id)cocoa_str("NSCaution")));
+	cocoa_set_with(alert, "setIcon:",
+		cocoa_get_with("NSImage", "imageNamed:", (id)cocoa_str("NSCaution")));
 
 	cocoa_set(alert, "setShowsHelp:", 0);
 	cocoa_set_with(alert, "setInformativeText:", message);
@@ -118,18 +120,15 @@ static void run_confirmation_panel(id self, SEL cmd, id webView, id message,
 static void run_alert_panel(id self, SEL cmd, id webView, id message, id frame,
 	void(^completionHandler)(void)) {
 	id alert = cocoa_new("NSAlert");
+	cocoa_set_with(alert, "setIcon:",
+		cocoa_get_with("NSImage", "imageNamed:", (id)cocoa_str("NSCaution")));
 
-	((void(*)(id, SEL, id))objc_msgSend)(alert, sel_getUid("setIcon:"),
-		((id(*)(id, SEL, id))objc_msgSend)((id)objc_getClass("NSImage"),
-			sel_getUid("imageNamed:"),
-			(id)cocoa_str("NSCaution")));
+	cocoa_set(alert, "setShowsHelp:", 0);
+	cocoa_set_with(alert, "setInformativeText:", message);
+	cocoa_set_with(alert, "addButtonWithTitle:", (id)cocoa_str("OK"));
 
-	((void(*)(id, SEL, int))objc_msgSend)(alert, sel_getUid("setShowsHelp:"), 0);
-	((void(*)(id, SEL, id))objc_msgSend)(alert, sel_getUid("setInformativeText:"), message);
-	((void(*)(id, SEL, id))objc_msgSend)(alert, sel_getUid("addButtonWithTitle:"),
-		(id)cocoa_str("OK"));
-	((void(*)(id, SEL))objc_msgSend)(alert, sel_getUid("runModal"));
-	((void(*)(id, SEL))objc_msgSend)(alert, sel_getUid("release"));
+	cocoa_select(alert, "runModal");
+	cocoa_select(alert, "release");
 	completionHandler();
 }
 
@@ -139,7 +138,7 @@ static void download_failed(id self, SEL cmd, id download, id error) {
 
 static void make_nav_policy_decision(id self, SEL cmd, id webView, id response,
 	void(^decisionHandler)(int)) {
-	if (((id(*)(id, SEL))objc_msgSend)(response, sel_getUid("canShowMIMEType")) == 0) {
+	if (cocoa_status(response, "canShowMIMEType") == 0) {
 		decisionHandler(WKNavigationActionPolicyDownload);
 	} else {
 		decisionHandler(WKNavigationResponsePolicyAllow);
@@ -323,37 +322,44 @@ int webview_create(gui_info *ui, webview_t *w) {
 	ui->app->gui = ui;
 	ui->app->running = YES;
 	w->priv.should_exit = 0;
+	main_gui_info->web->priv.should_exit = 0;
 
 	return 1;
 }
 
-int webview_loop(struct webview *w, int blocking) {
+int webview_loop(webview_t *w, int blocking) {
+	id event;
 	cocoa_set(cocoa_send(w->priv.window, "contentView"), "setNeedsDisplay:", YES);
-	id until = (blocking ? ((id(*)(id, SEL))objc_msgSend)((id)objc_getClass("NSDate"),
-		sel_getUid("distantFuture"))
-		: ((id(*)(id, SEL))objc_msgSend)((id)objc_getClass("NSDate"),
-			sel_getUid("distantPast")));
-
-	id event = cocoa_next_event(NSApp, NSUIntegerMax, until, (id)kCFRunLoopDefaultMode, YES);
-	if (event) {
-		cocoa_set_with(NSApp, "sendEvent:", event);
+	if (blocking) {
+		while ((!main_gui_info->bar_info ? !main_gui_info->web->priv.should_exit : !w->priv.should_exit)) {
+			event = cocoa_next_event(NSApp, NSUIntegerMax, nil, NSDefaultRunLoopMode, YES);
+			if (event) {
+				cocoa_set_with(NSApp, "sendEvent:", event);
+				cocoa_select(NSApp, "updateWindows");
+			}
+		}
+	} else {
+		event = cocoa_next_event(NSApp, NSUIntegerMax, cocoa_get("NSDate", "distantPast"), (id)kCFRunLoopDefaultMode, YES);
+		if (event) {
+			cocoa_set_with(NSApp, "sendEvent:", event);
+		}
 	}
 
 	return w->priv.should_exit;
 }
 
-int webview_eval(struct webview *w, const char *js) {
+int webview_eval(webview_t *w, const char *js) {
 	((void(*)(id, SEL, id, void *))objc_msgSend)(w->priv.webview,
 		sel_getUid("evaluateJavaScript:completionHandler:"),
 		(id)cocoa_str(js), NULL);
 	return 0;
 }
 
-FORCEINLINE void webview_set_title(struct webview *w, const char *title) {
+FORCEINLINE void webview_set_title(webview_t *w, const char *title) {
 	cocoa_set_with(w->priv.window, "setTitle:",	(id)cocoa_str(title));
 }
 
-FORCEINLINE void webview_set_fullscreen(struct webview *w, int fullscreen) {
+FORCEINLINE void webview_set_fullscreen(webview_t *w, int fullscreen) {
 	unsigned long windowStyleMask = cocoa_status(w->priv.window, "styleMask");
 	int b = (((windowStyleMask & NSWindowStyleMaskFullScreen) ==
 		NSWindowStyleMaskFullScreen)
@@ -364,7 +370,7 @@ FORCEINLINE void webview_set_fullscreen(struct webview *w, int fullscreen) {
 	}
 }
 
-void webview_set_color(struct webview *w, uint8_t r, uint8_t g,
+void webview_set_color(webview_t *w, uint8_t r, uint8_t g,
 	uint8_t b, uint8_t a) {
 
 	id color = ((id(*)(id, SEL, float, float, float, float))objc_msgSend)((id)objc_getClass("NSColor"),
@@ -391,7 +397,7 @@ void webview_set_color(struct webview *w, uint8_t r, uint8_t g,
 		sel_getUid("setTitlebarAppearsTransparent:"), 1);
 }
 
-void webview_dialog(struct webview *w,
+void webview_dialog(webview_t *w,
 	enum webview_dialog_type dlgtype, int flags,
 	const char *title, const char *arg,
 	char *result, size_t resultsz) {
@@ -473,7 +479,7 @@ static void webview_dispatch_cb(void *arg) {
 	free(context);
 }
 
-void webview_dispatch(struct webview *w, webview_dispatch_fn fn,
+void webview_dispatch(webview_t *w, webview_dispatch_fn fn,
 	void *arg) {
 	struct webview_dispatch_arg *context = (struct webview_dispatch_arg *)malloc(
 		sizeof(struct webview_dispatch_arg));
@@ -483,12 +489,7 @@ void webview_dispatch(struct webview *w, webview_dispatch_fn fn,
 	dispatch_async_f(dispatch_get_main_queue(), context, webview_dispatch_cb);
 }
 
-FORCEINLINE void webview_terminate(struct webview *w) {
-	cocoa_set(w->priv.window, "setIsVisible:", NO);
-	w->priv.should_exit = 1;
-}
-
-FORCEINLINE void webview_exit(struct webview *w) {
+FORCEINLINE void webview_exit(webview_t *w) {
 	cocoa_select(w->priv.pool, "drain");
 	object_dispose(w->priv.windowDelegate);
 	w->priv.webview = nil;

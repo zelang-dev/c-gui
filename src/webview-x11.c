@@ -374,39 +374,35 @@ FORCEINLINE int webview_create(gui_info *ui, webview_t *w) {
 	return 1;
 }
 
-FORCEINLINE int webview_loop(struct webview *w, int blocking) {
+FORCEINLINE int webview_loop(webview_t *w, int blocking) {
 	return w->priv.should_exit;
 }
 
-FORCEINLINE void webview_set_title(struct webview *w, const char *title) {
+FORCEINLINE void webview_set_title(webview_t *w, const char *title) {
 }
 
-FORCEINLINE void webview_set_fullscreen(struct webview *w, int fullscreen) {
+FORCEINLINE void webview_set_fullscreen(webview_t *w, int fullscreen) {
 }
 
-FORCEINLINE void webview_set_color(struct webview *w, uint8_t r, uint8_t g,
+FORCEINLINE void webview_set_color(webview_t *w, uint8_t r, uint8_t g,
 	uint8_t b, uint8_t a) {
 }
 
-FORCEINLINE void webview_dialog(struct webview *w,
+FORCEINLINE void webview_dialog(webview_t *w,
 	enum webview_dialog_type dlgtype, int flags,
 	const char *title, const char *arg,
 	char *result, size_t resultsz) {
 }
 
-FORCEINLINE int webview_eval(struct webview *w, const char *js) {
+FORCEINLINE int webview_eval(webview_t *w, const char *js) {
 	return 0;
 }
 
-FORCEINLINE void webview_dispatch(struct webview *w, webview_dispatch_fn fn,
+FORCEINLINE void webview_dispatch(webview_t *w, webview_dispatch_fn fn,
 	void *arg) {
 }
 
-FORCEINLINE void webview_terminate(struct webview *w) {
-	w->priv.should_exit = 1;
-}
-
-FORCEINLINE void webview_exit(struct webview *w) { (void)w; }
+FORCEINLINE void webview_exit(webview_t *w) { (void)w; }
 FORCEINLINE void webview_print_log(const char *s) {
 	fprintf(stderr, "%s\n", s);
 }
