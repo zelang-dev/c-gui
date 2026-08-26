@@ -43,7 +43,12 @@ FORCEINLINE ui_bool is_ValidEmail(ui_str_t text) {
 	return str_is_regex(emailRegex, text);
 }
 
-ui_bool check_PasswordValidity(ui_form_t field) {
+FORCEINLINE ui_bool is_ValidUrl(ui_str_t text) {
+	const char urlRegex[] = "(http|https)://((\\w)*|([0-9]*)|([-|_])*)+([\\.|/]((\\w)*|([0-9]*)|([-|_])*))+";
+	return str_is_regex(urlRegex, text);
+}
+
+ui_bool is_ValidPassword(ui_form_t field) {
 	ui_field_str(passwordValue, field);
 	ui_bool capitalResult = str_is_regex(".*[A-Z]+.*", passwordValue);
 	ui_bool smallResult = str_is_regex(".*[a-z]+.*", passwordValue);
@@ -52,21 +57,26 @@ ui_bool check_PasswordValidity(ui_form_t field) {
 	return capitalResult && smallResult && numberResult;
 }
 
-FORCEINLINE ui_bool is_MinLength(ui_form_t text, ui_field form) {
+static FORCEINLINE ui_bool is_MinLength(ui_form_t text, ui_field form) {
 	return (0 == form.min) ? (ui_bool)true : (int)str_length(text) >= form.min;
 }
 
-FORCEINLINE ui_bool is_MaxLength(ui_form_t text, ui_field form) {
+static FORCEINLINE ui_bool is_MaxLength(ui_form_t text, ui_field form) {
 	return (0 == form.max) ? (ui_bool)true : (int)str_length(text) <= form.max;
 }
 
-FORCEINLINE ui_bool is_EmailValid(ui_form_t field, ui_field form) {
+static FORCEINLINE ui_bool is_EmailValid(ui_form_t field, ui_field form) {
 	ui_field_str(value, field);
 	return form.kind == field_email ? is_ValidEmail(value) : (ui_bool)true;
 }
 
-FORCEINLINE ui_bool is_PasswordValid(ui_form_t text, ui_field form) {
-	return (form.kind == field_secret) ? check_PasswordValidity(text) : (ui_bool)true;
+static FORCEINLINE ui_bool is_UrlValid(ui_form_t field, ui_field form) {
+	ui_field_str(value, field);
+	return form.kind == field_url ? is_ValidUrl(value) : (ui_bool)true;
+}
+
+static FORCEINLINE ui_bool is_PasswordValid(ui_form_t text, ui_field form) {
+	return (form.kind == field_secret) ? is_ValidPassword(text) : (ui_bool)true;
 }
 
 FORCEINLINE ui_bool str_field_valid(ui_form_t field, ui_field form) {
@@ -74,7 +84,8 @@ FORCEINLINE ui_bool str_field_valid(ui_form_t field, ui_field form) {
 	ui_bool maximumLengthValidity = is_MaxLength(field, form);
 	ui_bool emailValidity = is_EmailValid(field, form);
 	ui_bool passwordValidity = is_PasswordValid(field, form);
-	return (minimunLengthValidly && maximumLengthValidity && emailValidity && passwordValidity);
+	ui_bool urlValidity = is_UrlValid(field, form);
+	return (minimunLengthValidly && maximumLengthValidity && emailValidity && passwordValidity && urlValidity);
 }
 #if defined(__APPLE__)
 static volatile bool main_apple_menu_ready = false;
@@ -498,6 +509,18 @@ static void verify_form(__GUI_FIELD__) {
 				case field_email:
 					snprintf(error, sizeof(error), "Error: invalid Email");
 					break;
+				case field_url:
+					snprintf(error, sizeof(error), "Error: invalid Url");
+					break;
+				case field_date:
+					snprintf(error, sizeof(error), "Error: invalid Date");
+					break;
+				case field_regex:
+					snprintf(error, sizeof(error), "Error: invalid regex");
+					break;
+				default:
+					snprintf(error, sizeof(error), "Error: unknown data");
+					break;
 			}
 
 			cocoa_set_with(ui->statusLine, "setStringValue:", (id)cocoa_str(error));
@@ -518,17 +541,8 @@ static BOOL AppDel_shouldTerminateAfterLastWindowClosed(AppDelegate *self, SEL s
 static BOOL AppDel_didFinishLaunching(AppDelegate *self, SEL selector, id data) {
 	(void)selector;
 	(void)data;
-	/// Create an instance of the window.
-	self->window = cocoa_window(0, main_gui_info->height, main_gui_info->width, main_gui_info->height,
-		(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
-			| NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable),
-		NSBackingStoreBuffered, YES);
 
-	main_gui_info->wnd = self->window;
-	cocoa_select(self->window, "becomeFirstResponder");
-	cocoa_set_with(self->window, "makeKeyAndOrderFront:", (id)self);
-	cocoa_set(self->window, "setAutorecalculatesKeyViewLoop:", YES);
-
+	self->window = main_gui_info->wnd;
 	// Application menu
 	id menubar = cocoa_send(cocoa_new("NSMenu"), "autorelease");
 	id appMenuItem = cocoa_send(cocoa_new("NSMenuItem"), "autorelease");
@@ -564,8 +578,7 @@ static void webView_didFinishNavigation(AppDelegate *self, SEL selector, id data
 	fprintf(stderr, "[ObjC]\t\t\tdidFinishNavigation()\n");
 #endif
 	NSString theTitle = (NSString)cocoa_send(data, "title");
-	webview_t *w = (webview_t *)objc_getAssociatedObject((id)self, "webview");
-	cocoa_set_with(w->priv.window, "setTitle:", (id)theTitle);
+	cocoa_set_with(main_gui_info->window[0], "setTitle:", (id)theTitle);
 #ifdef USE_DEBUG
 	fprintf(stderr, "[ObjC]\t\t\tdidFinishNavigation() -> Updated title [%s]\n", cocoa_tochar(theTitle));
 #endif
@@ -575,21 +588,28 @@ static void webView_didFinishNavigation(AppDelegate *self, SEL selector, id data
 
 static void cocoa_application(gui_info *ui) {
 	if (AppDelClass == NULL) {
-		AppDelClass = objc_allocateClassPair((Class)objc_getClass("NSObject"), "AppDelegate", 0);
-		class_addMethod(AppDelClass, sel_getUid("applicationDidFinishLaunching:"),
+		AppDelClass = cocoa_constructor("NSObject", "AppDelegate", "applicationDidFinishLaunching:",
 			(IMP)AppDel_didFinishLaunching, "i@:@");
 		class_addMethod(AppDelClass, sel_getUid("applicationShouldTerminateAfterLastWindowClosed:"),
 			(IMP)AppDel_shouldTerminateAfterLastWindowClosed, "i@:@");
-		objc_registerClassPair(AppDelClass);
 
-		ui->pool = cocoa_new("NSAutoreleasePool");
 		cocoa_post("NSApplication", "sharedApplication");
-		cocoa_set(NSApp, "setActivationPolicy:", NSApplicationActivationPolicyRegular);
 		if (NSApp == NULL) {
 			fprintf(stderr, "Failed to initialized NSApplication...  terminating...\n");
 			return;
 		}
 
+		/// Create an instance of the window.
+		ui->wnd = cocoa_window(0, ui->height, ui->width, ui->height,
+			(NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
+				| NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable),
+			NSBackingStoreBuffered, YES);
+
+		main_gui_info->wnd = ui->wnd;
+		cocoa_select(ui->wnd, "becomeFirstResponder");
+		cocoa_set_with(ui->wnd, "makeKeyAndOrderFront:", nil);
+		cocoa_set(ui->wnd, "setAutorecalculatesKeyViewLoop:", YES);
+		cocoa_set(NSApp, "setActivationPolicy:", NSApplicationActivationPolicyRegular);
 		ui->appDelObj = cocoa_init(cocoa_alloc("AppDelegate"));
 		cocoa_set_with(NSApp, "setDelegate:", ui->appDelObj);
 		cocoa_select(NSApp, "run");
@@ -711,6 +731,7 @@ static BOOL should_end_editing(__GUI_MENU__) {
 			is_ready = YES;
 			break;
 		case field_regex:
+		case field_url:
 			is_ready = YES;
 			break;
 	}
@@ -941,7 +962,7 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 	if (main_gui_info == NULL) {
 		main_gui_info = ui;
 		cocoa_application(ui);
-		if (main_gui_info->wnd == NULL) {
+		if (ui->wnd == NULL) {
 			fprintf(stderr, "Failed to initialized NSApplication...  terminating...\n");
 			return 0;
 		}
@@ -1030,9 +1051,10 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 
 FORCEINLINE void gui_close(gui_info *ui) {
 	cocoa_select(ui->wnd, "close");
-	if (ui->bar_info)
+	if (ui->bar_info && ui->pool)
 		cocoa_select(ui->pool, "drain");
 
+	ui->pool = nil;
 	objc_disposeClassPair(ui->delegate);
 	if (ui->bar_info) {
 		free(ui->bar_info->menus);
@@ -1049,7 +1071,19 @@ FORCEINLINE void gui_close(gui_info *ui) {
 FORCEINLINE int gui_handler(gui_info *ui) {
 	ui->app->running = YES;
 	cocoa_select(NSApp, "finishLaunching");
-	cocoa_select(NSApp, "run");
+	ui->pool = cocoa_new("NSAutoreleasePool");
+	cocoa_select(cocoa_send(ui->wnd, "autorelease"), "makeMainWindow");
+	while (ui->app->running) {
+		NSEvent event = cocoa_next_event(NSApp, NSUIntegerMax, nil, NSDefaultRunLoopMode, YES);
+		if (event) {
+			cocoa_set_with(NSApp, "sendEvent:", event);
+			cocoa_select(NSApp, "updateWindows");
+		}
+
+		if ((!main_gui_info->bar_info && main_gui_info->web->priv.should_exit))
+			break;
+	}
+
 	return 0;
 }
 
@@ -3560,7 +3594,6 @@ FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, in
 }
 
 FORCEINLINE void gui_webactive(gui_info ui) {
-	main_gui_info->web->priv = ui.web->priv;
 	webview_loop(ui.web, 1);
 }
 

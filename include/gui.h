@@ -7,6 +7,7 @@ typedef enum {
 	field_date,
 	field_email,
 	field_secret,
+	field_url,
 	field_regex,
 } ui_field_type;
 
@@ -640,6 +641,12 @@ C_API int gui_webview(gui_info *ui, const char *title, const char *url, int widt
 C_API void gui_webactive(gui_info ui);
 C_API void gui_webdestroy(gui_info ui);
 
+C_API ui_bool str_is_regex(const char *pattern, ui_str_t match);
+C_API ui_bool is_ValidUrl(ui_str_t text);
+C_API ui_bool is_ValidEmail(ui_str_t text);
+C_API ui_bool is_ValidPassword(ui_form_t field);
+C_API size_t str_length(ui_form_t field);
+
 #define DEFAULT_URL                                                            \
   "data:text/"                                                                 \
   "html,%3C%21DOCTYPE%20html%3E%0A%3Chtml%20lang=%22en%22%3E%0A%3Chead%3E%"    \
@@ -711,7 +718,6 @@ WEBVIEW_API int webview_run(const char *title, const char *url, int width, int h
 WEBVIEW_API int webview_loop(webview_t *w, int blocking);
 WEBVIEW_API int webview_eval(webview_t *w, const char *js);
 WEBVIEW_API int webview_inject_css(webview_t *w, const char *css);
-WEBVIEW_API void webview_set_title(webview_t *w, const char *title);
 WEBVIEW_API void webview_set_fullscreen(webview_t *w, int fullscreen);
 WEBVIEW_API void webview_set_color(webview_t *w, uint8_t r, uint8_t g,
 	uint8_t b, uint8_t a);
@@ -726,5 +732,51 @@ WEBVIEW_API void webview_debug(const char *format, ...);
 WEBVIEW_API void webview_print_log(const char *s);
 
 WEBVIEW_API int webview_create(gui_info *ui, webview_t *w);
+WEBVIEW_API void webview_loadfile(webview_t *w, const char *resourcefile, const char *type);
 
+/* Returns a native window handle pointer. */
+WEBVIEW_API ui_wnd_t webview_get_window(webview_t *w);
+
+/* Updates the title of the native window. Must be called from the UI thread. */
+WEBVIEW_API void webview_set_title(webview_t *w, const char *title);
+
+// Window size hints
+#define WEBVIEW_HINT_NONE 0  // Width and height are default size
+#define WEBVIEW_HINT_MIN 1   // Width and height are minimum bounds
+#define WEBVIEW_HINT_MAX 2   // Width and height are maximum bounds
+#define WEBVIEW_HINT_FIXED 3 // Window size can not be changed by a user
+
+/* Updates native window size. See WEBVIEW_HINT constants. */
+WEBVIEW_API void webview_set_size(webview_t *w, int width, int height, int hints);
+
+/* Navigates webview to the given URL. URL may be a properly encoded data URI.
+ *
+ * Examples:
+ * `webview_navigate(w, "https://github.com/webview/webview");`
+ * `webview_navigate(w, "data:text/html,%3Ch1%3EHello%3C%2Fh1%3E");`
+ * `webview_navigate(w, "data:text/html;base64,PGgxPkhlbGxvPC9oMT4=");` */
+WEBVIEW_API void webview_navigate(webview_t *w, const char *url);
+
+/* Set webview HTML directly.
+ *
+ * Example: `webview_set_html(w, "<h1>Hello</h1>");` */
+WEBVIEW_API void webview_set_html(webview_t *w, const char *html);
+
+// Go back
+WEBVIEW_API void webview_go_back(webview_t *w);
+
+// Go forward
+WEBVIEW_API void webview_go_forward(webview_t *w);
+
+// Reload page
+WEBVIEW_API void webview_reload(webview_t *w);
+
+// Stop loading page
+WEBVIEW_API void webview_stop(webview_t *w);
+
+// Get current page title
+WEBVIEW_API char *webview_get_title(webview_t *w);
+
+// Get current page URL
+WEBVIEW_API char *webview_get_url(webview_t *w);
 #endif /* _GUI_H */

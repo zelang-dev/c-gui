@@ -44,6 +44,7 @@ static void webview_window_will_close(id self, SEL cmd, id notification) {
 	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
 	if (w) {
 		w->priv.should_exit = 1;
+		main_gui_info->web->priv.should_exit = 1;
 	}
 }
 
@@ -322,22 +323,23 @@ int webview_create(gui_info *ui, webview_t *w) {
 	ui->app->gui = ui;
 	ui->app->running = YES;
 	w->priv.should_exit = 0;
-	main_gui_info->web->priv.should_exit = 0;
+	main_gui_info->web->priv = w->priv;
+	cocoa_set(cocoa_send(w->priv.window, "contentView"), "setNeedsDisplay:", YES);
 
 	return 1;
 }
 
 int webview_loop(webview_t *w, int blocking) {
 	id event;
-	cocoa_set(cocoa_send(w->priv.window, "contentView"), "setNeedsDisplay:", YES);
 	if (blocking) {
-		while ((!main_gui_info->bar_info ? !main_gui_info->web->priv.should_exit : !w->priv.should_exit)) {
+		while (!main_gui_info->web->priv.should_exit) {
 			event = cocoa_next_event(NSApp, NSUIntegerMax, nil, NSDefaultRunLoopMode, YES);
 			if (event) {
 				cocoa_set_with(NSApp, "sendEvent:", event);
 				cocoa_select(NSApp, "updateWindows");
 			}
 		}
+		w->priv.should_exit = 1;
 	} else {
 		event = cocoa_next_event(NSApp, NSUIntegerMax, cocoa_get("NSDate", "distantPast"), (id)kCFRunLoopDefaultMode, YES);
 		if (event) {
@@ -349,9 +351,7 @@ int webview_loop(webview_t *w, int blocking) {
 }
 
 int webview_eval(webview_t *w, const char *js) {
-	((void(*)(id, SEL, id, void *))objc_msgSend)(w->priv.webview,
-		sel_getUid("evaluateJavaScript:completionHandler:"),
-		(id)cocoa_str(js), NULL);
+	cocoa_set_pair(w->priv.webview, "evaluateJavaScript:completionHandler:", (id)cocoa_str(js), nil);
 	return 0;
 }
 
@@ -378,23 +378,90 @@ void webview_set_color(webview_t *w, uint8_t r, uint8_t g,
 		(float)r / 255.0, (float)g / 255.0, (float)b / 255.0,
 		(float)a / 255.0);
 
-	((void(*)(id, SEL, id))objc_msgSend)(w->priv.window, sel_getUid("setBackgroundColor:"), color);
-
+	cocoa_set_with(w->priv.window, "setBackgroundColor:", color);
 	if (0.5 >= ((r / 255.0 * 299.0) + (g / 255.0 * 587.0) + (b / 255.0 * 114.0)) /
 		1000.0) {
-		((void(*)(id, SEL, id))objc_msgSend)(w->priv.window, sel_getUid("setAppearance:"),
-			((id(*)(id, SEL, id))objc_msgSend)((id)objc_getClass("NSAppearance"),
-				sel_getUid("appearanceNamed:"),
-				(id)cocoa_str("NSAppearanceNameVibrantDark")));
+		cocoa_set_with(w->priv.window, "setAppearance:",
+			cocoa_get_with("NSAppearance", "appearanceNamed:", (id)cocoa_str("NSAppearanceNameVibrantDark")));
 	} else {
-		((void(*)(id, SEL, id))objc_msgSend)(w->priv.window, sel_getUid("setAppearance:"),
-			((id(*)(id, SEL, id))objc_msgSend)((id)objc_getClass("NSAppearance"),
-				sel_getUid("appearanceNamed:"),
-				(id)cocoa_str("NSAppearanceNameVibrantLight")));
+		cocoa_set_with(w->priv.window, "setAppearance:",
+			cocoa_get_with("NSAppearance", "appearanceNamed:", (id)cocoa_str("NSAppearanceNameVibrantLight")));
 	}
-	((void(*)(id, SEL, int))objc_msgSend)(w->priv.window, sel_getUid("setOpaque:"), 0);
-	((void(*)(id, SEL, int))objc_msgSend)(w->priv.window,
-		sel_getUid("setTitlebarAppearsTransparent:"), 1);
+
+	cocoa_set(w->priv.window, "setOpaque:", 0);
+	cocoa_set(w->priv.window, "setTitlebarAppearsTransparent:", 1);
+}
+
+FORCEINLINE ui_wnd_t webview_get_window(webview_t *w) {
+	return w->priv.window;
+}
+
+void webview_set_size(webview_t *w, int width, int height, int hints) {
+	NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+		NSWindowStyleMaskMiniaturizable;
+	if (hints != WEBVIEW_HINT_FIXED) {
+		style = style | NSWindowStyleMaskResizable;
+	}
+
+	cocoa_set(w->priv.window, "setStyleMask:", style);
+
+	if (hints == WEBVIEW_HINT_MIN) {
+		cocoa_set_size(w->priv.window, "setContentMinSize:", width, height);
+	} else if (hints == WEBVIEW_HINT_MAX) {
+		cocoa_set_size(w->priv.window, "setContentMaxSize:", width, height);
+	} else {
+		((void (*)(id, SEL, CGRect, BOOL, BOOL))objc_msgSend)(
+			w->priv.window, sel_getUid("setFrame:display:animate:"),
+			CGRectMake(0, 0, width, height), 1, 0);
+	}
+
+	cocoa_select(w->priv.window, "center");
+}
+
+FORCEINLINE void webview_navigate(webview_t *w, const char *url) {
+	id nsURL = cocoa_get_with("NSURL", "URLWithString:", (id)cocoa_str(url));
+	cocoa_set_with(w->priv.webview, "loadRequest:", cocoa_get_with("NSURLRequest", "requestWithURL:", nsURL));
+}
+
+void webview_loadfile(webview_t *w, const char *resourcefile, const char *type) {
+	NSBundle mainBundle = cocoa_get("NSBundle", "mainBundle");
+	NSString filePath = (NSString)cocoa_sendpair_func(mainBundle, sel_getUid("pathForResource:ofType:"),
+		(id)cocoa_str(resourcefile), (id)cocoa_str(type));
+
+	NSURL url = (NSURL)cocoa_get_with("NSURL", "fileURLWithPath:", (id)filePath);
+
+	cocoa_set_pair(w->priv.webview, "loadFileURL:allowingReadAccessToURL:", (id)url,
+		cocoa_send((id)url, "URLByDeletingLastPathComponent"));
+}
+
+FORCEINLINE void webview_set_html(webview_t *w, const char *html) {
+	cocoa_set_pair(w->priv.webview, "loadHTMLString:baseURL:", (id)cocoa_str(html), nil);
+}
+
+FORCEINLINE void webview_go_back(webview_t *w) {
+	if ((bool)cocoa_status(w->priv.webview, "canGoBack"))
+		cocoa_select(w->priv.webview, "goBack");
+}
+
+FORCEINLINE void webview_go_forward(webview_t *w) {
+	if ((bool)cocoa_status(w->priv.webview, "canGoForward"))
+		cocoa_select(w->priv.webview, "goForward");
+}
+
+FORCEINLINE void webview_reload(webview_t *w) {
+	cocoa_select(w->priv.webview, "reload");
+}
+
+FORCEINLINE void webview_stop(webview_t *w) {
+	cocoa_select(w->priv.webview, "stopLoading");
+}
+
+FORCEINLINE char *webview_get_title(webview_t *w) {
+	return cocoa_tochar((NSString)cocoa_send(w->priv.webview, "title"));
+}
+
+FORCEINLINE char *webview_get_url(webview_t *w) {
+	return cocoa_tochar((NSString)cocoa_send(w->priv.webview, "url"));
 }
 
 void webview_dialog(webview_t *w,
@@ -405,71 +472,61 @@ void webview_dialog(webview_t *w,
 		dlgtype == WEBVIEW_DIALOG_TYPE_SAVE) {
 		id panel = (id)objc_getClass("NSSavePanel");
 		if (dlgtype == WEBVIEW_DIALOG_TYPE_OPEN) {
-			id openPanel = ((id(*)(id, SEL))objc_msgSend)((id)objc_getClass("NSOpenPanel"),
-				sel_getUid("openPanel"));
+			id openPanel = cocoa_get("NSOpenPanel", "openPanel");
 			if (flags & WEBVIEW_DIALOG_FLAG_DIRECTORY) {
-				((void(*)(id, SEL, int))objc_msgSend)(openPanel, sel_getUid("setCanChooseFiles:"), 0);
-				((void(*)(id, SEL, int))objc_msgSend)(openPanel, sel_getUid("setCanChooseDirectories:"),
-					1);
+				cocoa_set(openPanel, "setCanChooseFiles:", 0);
+				cocoa_set(openPanel, "setCanChooseDirectories:", 1);
 			} else {
-				((void(*)(id, SEL, int))objc_msgSend)(openPanel, sel_getUid("setCanChooseFiles:"), 1);
-				((void(*)(id, SEL, int))objc_msgSend)(openPanel, sel_getUid("setCanChooseDirectories:"),
-					0);
+				cocoa_set(openPanel, "setCanChooseFiles:", 1);
+				cocoa_set(openPanel, "setCanChooseDirectories:", 0);
 			}
-			((void(*)(id, SEL, int))objc_msgSend)(openPanel, sel_getUid("setResolvesAliases:"), 0);
-			((void(*)(id, SEL, int))objc_msgSend)(openPanel, sel_getUid("setAllowsMultipleSelection:"),
-				0);
+
+			cocoa_set(openPanel, "setResolvesAliases:", 0);
+			cocoa_set(openPanel, "setAllowsMultipleSelection:",	0);
 			panel = openPanel;
 		} else {
-			panel = ((id(*)(id, SEL))objc_msgSend)((id)objc_getClass("NSSavePanel"),
-				sel_getUid("savePanel"));
+			panel = cocoa_get("NSSavePanel", "savePanel");
 		}
 
-		((void(*)(id, SEL, int))objc_msgSend)(panel, sel_getUid("setCanCreateDirectories:"), 1);
-		((void(*)(id, SEL, int))objc_msgSend)(panel, sel_getUid("setShowsHiddenFiles:"), 1);
-		((void(*)(id, SEL, int))objc_msgSend)(panel, sel_getUid("setExtensionHidden:"), 0);
-		((void(*)(id, SEL, int))objc_msgSend)(panel, sel_getUid("setCanSelectHiddenExtension:"), 0);
-		((void(*)(id, SEL, int))objc_msgSend)(panel, sel_getUid("setTreatsFilePackagesAsDirectories:"),
-			1);
-		((void(*)(id, SEL, id, void(^)(id)))objc_msgSend)(
-			panel, sel_getUid("beginSheetModalForWindow:completionHandler:"),
-			w->priv.window, ^(id result) {
+		cocoa_set(panel, "setCanCreateDirectories:", 1);
+		cocoa_set(panel, "setShowsHiddenFiles:", 1);
+		cocoa_set(panel, "setExtensionHidden:", 0);
+		cocoa_set(panel, "setCanSelectHiddenExtension:", 0);
+		cocoa_set(panel, "setTreatsFilePackagesAsDirectories:", 1);
+		cocoa_model_func(panel, sel_getUid("beginSheetModalForWindow:completionHandler:"),
+			w->priv.window, (IMP)^(id result) {
 			cocoa_set_with(NSApp, "stopModalWithCode:", result);
 		});
 
-		if (((id(*)(id, SEL, id))objc_msgSend)(((id(*)(id, SEL))objc_msgSend)((id)objc_getClass("NSApplication"),
-			sel_getUid("sharedApplication")),
-			sel_getUid("runModalForWindow:"),
-			panel) == (id)NSModalResponseOK) {
-			id url = ((id(*)(id, SEL))objc_msgSend)(panel, sel_getUid("URL"));
-			id path = ((id(*)(id, SEL))objc_msgSend)(url, sel_getUid("path"));
-			const char *filename = ((const char *(*)(id, SEL))objc_msgSend)(path, sel_getUid("UTF8String"));
+		if (cocoa_send_with(NSApp, "runModalForWindow:", panel) == (id)NSModalResponseOK) {
+			id url = cocoa_send(panel, "URL");
+			id path = cocoa_send(url, "path");
+			const char *filename = cocoa_tochar((NSString)path);
 			strlcpy(result, filename, resultsz);
 		}
 	} else if (dlgtype == WEBVIEW_DIALOG_TYPE_ALERT) {
 		id a = cocoa_new("NSAlert");
 		switch (flags & WEBVIEW_DIALOG_FLAG_ALERT_MASK) {
 			case WEBVIEW_DIALOG_FLAG_INFO:
-				((void(*)(id, SEL, int))objc_msgSend)(a, sel_getUid("setAlertStyle:"),
-					NSAlertStyleInformational);
+				cocoa_set(a, "setAlertStyle:", NSAlertStyleInformational);
 				break;
 			case WEBVIEW_DIALOG_FLAG_WARNING:
-				printf("Warning\n");
-				((void(*)(id, SEL, int))objc_msgSend)(a, sel_getUid("setAlertStyle:"), NSAlertStyleWarning);
+				fprintf(stderr, "Warning\n");
+				cocoa_set(a, "setAlertStyle:", NSAlertStyleWarning);
 				break;
 			case WEBVIEW_DIALOG_FLAG_ERROR:
-				printf("Error\n");
-				((void(*)(id, SEL, int))objc_msgSend)(a, sel_getUid("setAlertStyle:"), NSAlertStyleCritical);
+				fprintf(stderr, "Error\n");
+				cocoa_set(a, "setAlertStyle:", NSAlertStyleCritical);
 				break;
 		}
-		((void(*)(id, SEL, int))objc_msgSend)(a, sel_getUid("setShowsHelp:"), 0);
-		((void(*)(id, SEL, int))objc_msgSend)(a, sel_getUid("setShowsSuppressionButton:"), 0);
-		((void(*)(id, SEL, id))objc_msgSend)(a, sel_getUid("setMessageText:"), (id)cocoa_str(title));
-		((void(*)(id, SEL, id))objc_msgSend)(a, sel_getUid("setInformativeText:"), (id)cocoa_str(arg));
-		((void(*)(id, SEL, id))objc_msgSend)(a, sel_getUid("addButtonWithTitle:"),
-			(id)cocoa_str("OK"));
-		((void(*)(id, SEL))objc_msgSend)(a, sel_getUid("runModal"));
-		((void(*)(id, SEL))objc_msgSend)(a, sel_getUid("release"));
+
+		cocoa_set(a, "setShowsHelp:", 0);
+		cocoa_set(a, "setShowsSuppressionButton:", 0);
+		cocoa_set_with(a, "setMessageText:", (id)cocoa_str(title));
+		cocoa_set_with(a, "setInformativeText:", (id)cocoa_str(arg));
+		cocoa_set_with(a, "addButtonWithTitle:", (id)cocoa_str("OK"));
+		cocoa_select(a, "runModal");
+		cocoa_select(a, "release");
 	}
 }
 
@@ -489,10 +546,12 @@ void webview_dispatch(webview_t *w, webview_dispatch_fn fn,
 	dispatch_async_f(dispatch_get_main_queue(), context, webview_dispatch_cb);
 }
 
-FORCEINLINE void webview_exit(webview_t *w) {
+void webview_exit(webview_t *w) {
+	if (main_gui_info->web->priv.webview == w->priv.webview)
+		memset((void *)main_gui_info->web, 0, sizeof(main_gui_info->web));
+
 	cocoa_select(w->priv.pool, "drain");
 	object_dispose(w->priv.windowDelegate);
-	w->priv.webview = nil;
 }
 
 FORCEINLINE void webview_print_log(const char *s) { fprintf(stderr, "%s\n", s); }

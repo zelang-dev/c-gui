@@ -1286,5 +1286,86 @@ FORCEINLINE void webview_exit(webview_t *w) {
 	OleUninitialize();
 }
 
+/*void webview_set_size(webview_t *w, int width, int height, int hints) {
+	auto style = GetWindowLong(w->priv.hwnd, GWL_STYLE);
+	if (hints == WEBVIEW_HINT_FIXED) {
+		style &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
+	} else {
+		style |= (WS_THICKFRAME | WS_MAXIMIZEBOX);
+	}
+	SetWindowLong(w->priv.hwnd, GWL_STYLE, style);
+
+	if (hints == WEBVIEW_HINT_MAX) {
+		m_maxsz.x = width;
+		m_maxsz.y = height;
+	} else if (hints == WEBVIEW_HINT_MIN) {
+		m_minsz.x = width;
+		m_minsz.y = height;
+	} else {
+		auto dpi = get_window_dpi(w->priv.hwnd);
+		m_dpi = dpi;
+		auto scaled_size =
+			scale_size(width, height, get_default_window_dpi(), dpi);
+		auto frame_size =
+			make_window_frame_size(w->priv.hwnd, scaled_size.cx, scaled_size.cy, dpi);
+		SetWindowPos(w->priv.hwnd, nullptr, 0, 0, frame_size.cx, frame_size.cy,
+			SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE |
+			SWP_FRAMECHANGED);
+	}
+
+	ShowWindow(w->priv.hwnd, SW_SHOW);
+	UpdateWindow(w->priv.hwnd);
+	SetFocus(w->priv.hwnd);
+}*/
+
+FORCEINLINE void webview_go_back(webview_t *w) {
+	BOOL canGoBack = FALSE;
+	w->priv.webview2->get_CanGoBack(&canGoBack);
+	if (canGoBack)
+		w->priv.webview2->GoBack();
+}
+
+FORCEINLINE void webview_go_forward(webview_t *w) {
+	BOOL canGoForward = FALSE;
+	w->priv.webview2->get_CanGoForward(&canGoForward);
+	if (canGoForward)
+		w->priv.webview2->GoForward();
+}
+
+FORCEINLINE void webview_reload(webview_t *w) {
+	w->priv.webview2->Reload();
+}
+
+FORCEINLINE void webview_stop(webview_t *w) {
+	w->priv.webview2->Stop();
+}
+
+FORCEINLINE void webview_set_html(webview_t *w, const char *html) {
+	w->priv.webview2->NavigateToString(widen_string(html));
+}
+
+FORCEINLINE void webview_navigate(webview_t *w, const char *url) {
+	char wurl = widen_string(url);
+	w->priv.webview2->Navigate(wurl);
+}
+
+FORCEINLINE char *webview_get_title(webview_t *w) {
+	LPWSTR wtitle;
+	w->priv.webview2->get_DocumentTitle(&wtitle);
+	int length = WideCharToMultiByte(CP_UTF8, 0, wtitle, -1, 0, 0, NULL, NULL);
+	char *title = malloc(length);
+	WideCharToMultiByte(CP_UTF8, 0, wtitle, -1, title, length, NULL, NULL);
+	return title;
+}
+
+FORCEINLINE char *webview_get_url(webview_t *w) {
+	LPWSTR wurl;
+	w->priv.webview2->get_Source(&wurl);
+	int length = WideCharToMultiByte(CP_UTF8, 0, wurl, -1, 0, 0, NULL, NULL);
+	char *url = malloc(length);
+	WideCharToMultiByte(CP_UTF8, 0, wurl, -1, url, length, NULL, NULL);
+	return url;
+}
+
 FORCEINLINE void webview_print_log(const char *s) { OutputDebugString(s); }
 #endif

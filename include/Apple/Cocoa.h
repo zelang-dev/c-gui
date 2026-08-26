@@ -358,7 +358,9 @@ typedef id NSPredicate;
 typedef id NSApplication;
 typedef Class WKWebViewConfiguration;
 typedef id WKWebView;
+typedef id WebView;
 typedef id NSURLRequest;
+typedef id NSBundle;
 
 #define NSNotFound NSIntegerMax
 #define NSVariableStatusItemLength (-1)
@@ -671,7 +673,8 @@ C_API void cocoa_check(id window, NSButton, BOOL onOff);
 
 C_API Class cocoa_constructor(const char *superclass, const char *alloc_class, const char *sel_name,
 	IMP imp, const char *types);
-C_API WKWebView cocoa_webview_with(id window);
+C_API WKWebView cocoa_WKwebview_with(id window);
+C_API WebView cocoa_webview_with(id window);
 
 #define dict(obj, key)	((id)obj), ((char *)(key))
 
