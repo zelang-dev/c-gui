@@ -181,6 +181,7 @@ static const char *parse_data_URI_content_type(const char *uri, int *comma_index
 }
 
 int webview_create(gui_info *ui, webview_t *w) {
+
 	w->priv.pool = cocoa_new("NSAutoreleasePool");
 	/*
 	Class __WKScriptMessageHandler = objc_allocateClassPair(
@@ -271,8 +272,27 @@ int webview_create(gui_info *ui, webview_t *w) {
 			}
 		}
 
-		CGRect r = CGRectMake(0, 0, w->width, w->height);
-		ui->webView[0] = (WKWebView)cocoa_sendrect_func(cocoa_autorelease("WKWebView"), sel_getUid("initWithFrame:"), r);
+		ui->webView[0] = (WKWebView)cocoa_sendrect_func(cocoa_autorelease("WKWebView"),
+			sel_getUid("initWithFrame:"),
+			CGRectMake(0, 0, w->width, w->height - 25));
+		if (w->showtoolbar) {
+			class_addMethod(ui->delegate, sel_registerName("webview_home:"), (IMP)webview_home, "v@:@");
+			class_addMethod(ui->delegate, sel_registerName("webview_go_back:"), (IMP)webview_go_back, "v@:@");
+			class_addMethod(ui->delegate, sel_registerName("webview_go_forward:"), (IMP)webview_go_forward, "v@:@");
+			class_addMethod(ui->delegate, sel_registerName("webview_go_to:"), (IMP)webview_go_to, "v@:@");
+			class_addMethod(ui->delegate, sel_registerName("webview_reload:"), (IMP)webview_reload, "v@:@");
+			class_addMethod(ui->delegate, sel_registerName("webview_stop:"), (IMP)webview_stop, "v@:@");
+
+			cocoa_button(ui->window[0], "Home", "webview_home:", 4, w->height - 22, 50, NSRoundRectBezelStyle, true);
+			cocoa_button(ui->window[0], "<", "webview_go_back:", 56, w->height - 22, 25, NSRoundRectBezelStyle, true);
+			cocoa_button(ui->window[0], ">", "webview_go_forward:", 78, w->height - 22, 25, NSRoundRectBezelStyle, true);
+
+			int width = w->width - 162;
+			NSTextField field = cocoa_field(ui->window[0], ui->webView[0], "", 105,
+				w->height - 22, width, field_url);
+			w->userdata = (void *)field;
+			cocoa_button(ui->window[0], "Go", "webview_go_to:", width + 110, w->height - 22, 40, NSRoundRectBezelStyle, -1);
+		}
 
 		if (!ui->webView[0]) {
 #ifdef USE_DEBUG
@@ -423,6 +443,27 @@ FORCEINLINE void webview_navigate(webview_t *w, const char *url) {
 	cocoa_set_with(w->priv.webview, "loadRequest:", cocoa_get_with("NSURLRequest", "requestWithURL:", nsURL));
 }
 
+FORCEINLINE void webview_go_to(__GUI_FIELD__) {
+	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
+	if (w) {
+		NSTextField url = (NSTextField)w->userdata;
+		ui_field_str(curl, url);
+		if (is_ValidUrl(curl)) {
+			cocoa_set_with(w->priv.webview, "loadRequest:",
+				cocoa_get_with("NSURLRequest", "requestWithURL:",
+					cocoa_get_with("NSURL", "URLWithString:", (id)curl)));
+		}
+	}
+}
+
+FORCEINLINE void webview_home(__GUI_FIELD__) {
+	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
+	if (w) {
+		id nsURL = cocoa_get_with("NSURL", "URLWithString:", (id)cocoa_str(w->url));
+		cocoa_set_with(w->priv.webview, "loadRequest:", cocoa_get_with("NSURLRequest", "requestWithURL:", nsURL));
+	}
+}
+
 void webview_loadfile(webview_t *w, const char *resourcefile, const char *type) {
 	NSBundle mainBundle = cocoa_get("NSBundle", "mainBundle");
 	NSString filePath = (NSString)cocoa_sendpair_func(mainBundle, sel_getUid("pathForResource:ofType:"),
@@ -438,22 +479,28 @@ FORCEINLINE void webview_set_html(webview_t *w, const char *html) {
 	cocoa_set_pair(w->priv.webview, "loadHTMLString:baseURL:", (id)cocoa_str(html), nil);
 }
 
-FORCEINLINE void webview_go_back(webview_t *w) {
-	if ((bool)cocoa_status(w->priv.webview, "canGoBack"))
+FORCEINLINE void webview_go_back(__GUI_FIELD__) {
+	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
+	if (w && (bool)cocoa_status(w->priv.webview, "canGoBack"))
 		cocoa_select(w->priv.webview, "goBack");
 }
 
-FORCEINLINE void webview_go_forward(webview_t *w) {
-	if ((bool)cocoa_status(w->priv.webview, "canGoForward"))
+FORCEINLINE void webview_go_forward(__GUI_FIELD__) {
+	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
+	if (w && (bool)cocoa_status(w->priv.webview, "canGoForward"))
 		cocoa_select(w->priv.webview, "goForward");
 }
 
-FORCEINLINE void webview_reload(webview_t *w) {
-	cocoa_select(w->priv.webview, "reload");
+FORCEINLINE void webview_reload(__GUI_FIELD__) {
+	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
+	if (w)
+		cocoa_select(w->priv.webview, "reload");
 }
 
-FORCEINLINE void webview_stop(webview_t *w) {
-	cocoa_select(w->priv.webview, "stopLoading");
+FORCEINLINE void webview_stop(__GUI_FIELD__) {
+	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
+	if (w)
+		cocoa_select(w->priv.webview, "stopLoading");
 }
 
 FORCEINLINE char *webview_get_title(webview_t *w) {

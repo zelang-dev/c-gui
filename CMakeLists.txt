@@ -80,7 +80,7 @@ else()
 endif()
 
 set(gui_file ${CMAKE_CURRENT_SOURCE_DIR}/src/gui.c
-	${CMAKE_CURRENT_SOURCE_DIR}/src/re.c)
+	${CMAKE_CURRENT_SOURCE_DIR}/src/libsmallregex.c)
 
 if(APPLE OR WIN32)
 	if(BUILD_SHARED_LIBS)

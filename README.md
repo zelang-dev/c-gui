@@ -109,7 +109,7 @@ void message_box(__GUI_MENU__) {
 
 void web_box(__GUI_MENU__) {
  gui_info ui = {0};
- gui_webview(&ui, "Webview", "http://www.faqs.org", 800, 300);
+ gui_webview(&ui, "Webview", "http://www.faqs.org", 800, 300, true);
  gui_webactive(ui);
  gui_webdestroy(ui);
 }

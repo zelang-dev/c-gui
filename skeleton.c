@@ -174,7 +174,7 @@ void message_box(__GUI_MENU__) {
 
 void web_box(__GUI_MENU__) {
 	gui_info ui = {0};
-	gui_webview(&ui, "Webview", "http://en.wikipedia.org/wiki/WebView", 800, 400);
+	gui_webview(&ui, "Webview", "http://en.wikipedia.org/wiki/WebView", 800, 400, false);
 	gui_webactive(ui);
 	gui_webdestroy(ui);
 }

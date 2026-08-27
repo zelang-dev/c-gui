@@ -538,6 +538,7 @@ struct webview {
 	int width;
 	int height;
 	int resizable;
+	int showtoolbar;
 	int debug;
 	webview_external_invoke_cb_t external_invoke_cb;
 	struct webview_priv priv;
@@ -637,7 +638,7 @@ C_API int64_t gui_time(void);
 #	define casting(val) (void *)((ptrdiff_t)(val))
 #endif
 
-C_API int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height);
+C_API int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height, bool showtoolbar);
 C_API void gui_webactive(gui_info ui);
 C_API void gui_webdestroy(gui_info ui);
 
@@ -762,17 +763,22 @@ WEBVIEW_API void webview_navigate(webview_t *w, const char *url);
  * Example: `webview_set_html(w, "<h1>Hello</h1>");` */
 WEBVIEW_API void webview_set_html(webview_t *w, const char *html);
 
+WEBVIEW_API void webview_go_to(__GUI_FIELD__);
+
+// Go home
+WEBVIEW_API void webview_home(__GUI_FIELD__);
+
 // Go back
-WEBVIEW_API void webview_go_back(webview_t *w);
+WEBVIEW_API void webview_go_back(__GUI_FIELD__);
 
 // Go forward
-WEBVIEW_API void webview_go_forward(webview_t *w);
+WEBVIEW_API void webview_go_forward(__GUI_FIELD__);
 
 // Reload page
-WEBVIEW_API void webview_reload(webview_t *w);
+WEBVIEW_API void webview_reload(__GUI_FIELD__);
 
 // Stop loading page
-WEBVIEW_API void webview_stop(webview_t *w);
+WEBVIEW_API void webview_stop(__GUI_FIELD__);
 
 // Get current page title
 WEBVIEW_API char *webview_get_title(webview_t *w);

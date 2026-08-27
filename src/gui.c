@@ -1,5 +1,5 @@
 #include <gui.h>
-#include "re.h"
+#include "libsmallregex.h"
 static volatile gui_info *main_gui_info = NULL;
 static volatile bool main_gui_shutdown = false;
 
@@ -24,28 +24,21 @@ FORCEINLINE size_t str_length(ui_form_t field) {
 }
 
 FORCEINLINE ui_bool str_is_regex(const char *pattern, ui_str_t match) {
-	int length = 0;
 #if __APPLE__
-	return re_match(pattern, (const char *)cocoa_tochar(match), &length) == 0;
+	return regex_match(pattern, (const char *)cocoa_tochar(match)) == 0;
+#else
+	return regex_match(pattern, (const char *)match) == 0;
 #endif
-	return re_match(pattern, (const char *)match, &length) == 0;
 }
 
 FORCEINLINE ui_bool is_ValidEmail(ui_str_t text) {
-	const char emailRegex[] =
-		"(?:[a-z0-9!#$%\\&'*+/=?\\^_`{|}~-]+(?:\\.[a-z0-9!#$%\\&'*+/=?\\^_`{|}"
-		"~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\"
-		"x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-"
-		"z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:25[0-5"
-		"]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-"
-		"9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21"
-		"-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])";
-	return str_is_regex(emailRegex, text);
+	const char *emailRegEx = "A[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9]"
+		"(?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?";
+	return str_is_regex(emailRegEx, text);
 }
 
 FORCEINLINE ui_bool is_ValidUrl(ui_str_t text) {
-	const char urlRegex[] = "(http|https)://((\\w)*|([0-9]*)|([-|_])*)+([\\.|/]((\\w)*|([0-9]*)|([-|_])*))+";
-	return str_is_regex(urlRegex, text);
+	return str_is_regex("(http|https)://((\\w)*|([0-9]*)|([-|_])*)+([\\.|/]((\\w)*|([0-9]*)|([-|_])*))+", text);
 }
 
 ui_bool is_ValidPassword(ui_form_t field) {
@@ -239,6 +232,57 @@ FORCEINLINE Class cocoa_constructor(const char *superclass, const char *alloc_cl
 	return new_class;
 }
 
+NSButton cocoa_button(id window, char *label, char *action, float x, float y, float width,
+	NSBezelStyle style, int location) {
+	NSAutoresizingMaskOptions resize_mask = location != -1
+		? NSViewMaxXMargin | NSViewMaxYMargin
+		: NSViewMinXMargin;
+	NSButton button = cocoa_send(cocoa_send_rect(cocoa_alloc("NSButton"), "initWithFrame:", x, y, width, 19), "autorelease");
+	cocoa_set_with(button, "setTitle:", (id)cocoa_str(label));
+	cocoa_set(button, "setBezelStyle:", style);
+	cocoa_postfunc_func(button, sel_registerName("setAction:"), sel_getUid(action));
+	cocoa_set_with(button, "setTarget:", nil);
+	cocoa_set(button, "setAutoresizingMask:", (location == YES
+		? resize_mask | NSViewMinYMargin
+		: (location == -1
+			? resize_mask | NSViewMaxYMargin | NSViewMinYMargin
+			: resize_mask)));
+	cocoa_set_with(cocoa_send(window, "contentView"), "addSubview:", button);
+	return button;
+}
+
+NSTextField cocoa_field(id window, id alignwith, char *inital, float x, float y, float width,
+	ui_field_type kind) {
+	NSTextField field = cocoa_send(cocoa_send_rect((kind == field_secret
+		? cocoa_alloc("NSSecureTextField") : cocoa_alloc("NSTextField")),
+		"initWithFrame:", x, y, width, 20), "autorelease");
+	cocoa_select(field, "becomeFirstResponder");
+	cocoa_set(field, "setAutoresizingMask:", (NSViewWidthSizable | NSViewMaxYMargin | NSViewMinYMargin));
+	cocoa_set_with(field, "setStringValue:", (id)cocoa_str(inital));
+	cocoa_postpairwith_func(cocoa_send(window, "contentView"),
+		sel_getUid("addSubview:positioned:relativeTo:"), field, NSWindowAbove, alignwith);
+	return field;
+}
+
+FORCEINLINE void cocoa_textcolor(id view, CGFloat red, CGFloat green, CGFloat blue, CGFloat alpha) {
+	cocoa_set_with(cocoa_send(view, "cell"), "setTextColor:",
+		(id)CGColorCreateGenericRGB(red, green, blue, alpha));
+}
+
+FORCEINLINE void cocoa_backgroundcolor(id view, CGFloat red, CGFloat green, CGFloat blue, CGFloat alpha) {
+	cocoa_set_with(cocoa_send(view, "cell"), "setBackgroundColor:",
+		(id)CGColorCreateGenericRGB(red, green, blue, alpha));
+}
+
+FORCEINLINE void cocoa_cell_colors(id view, const char *text, const char *background) {
+	if (view) {
+		if (text)
+			cocoa_set_with(cocoa_send(view, "cell"), "setTextColor:", cocoa_get("NSColor", text));
+		if (background)
+			cocoa_set_with(cocoa_send(view, "cell"), "setBackgroundColor:", cocoa_get("NSColor", background));
+	}
+}
+
 FORCEINLINE id cocoa_window(int x, int y, int width, int height, int style, int backing, bool defer) {
 	return cocoa_window_func(cocoa_alloc("NSWindow"),
 		sel_getUid("initWithContentRect:styleMask:backing:defer:"),
@@ -247,12 +291,6 @@ FORCEINLINE id cocoa_window(int x, int y, int width, int height, int style, int 
 
 FORCEINLINE NSEvent cocoa_next_event(id instance, unsigned long mask, id expiration, id mode, BOOL deqFlag) {
 	return cocoa_event_func(instance, sel_getUid("nextEventMatchingMask:untilDate:inMode:dequeue:"), mask, expiration, mode, deqFlag);
-}
-
-FORCEINLINE BOOL cocoa_str_regex(const char *regexString, NSString stringToEvaluate) {
-	id re = (id)cocoa_sprintf("SELF MATCHES[cd] %@", cocoa_str(regexString));
-	NSPredicate regexPredicate = cocoa_get_with("NSPredicate", "predicateWithFormat:", re);
-	return (BOOL)cocoa_intwith_func(regexPredicate, sel_getUid("evaluateWithObject:"), (id)stringToEvaluate);
 }
 
 FORCEINLINE NSString cocoa_str(const char *text) {
@@ -671,8 +709,6 @@ NSTextField cocoa_text_field(id gui, ui_field_type kind, char *label, char *fiel
 		"initWithFrame:", x, y - 5, width, 21), "autorelease");
 	cocoa_set_with(text, "setDelegate:", (id)ui->delegate);
 	cocoa_select(text, "becomeFirstResponder");
-	//cocoa_set_with(text, "setTextColor:", (id)CGColorCreateGenericRGB(RGB_RED, 0);
-	//cocoa_set_with(cocoa_send(text, "cell"), "setBackgroundColor:", cocoa_get("NSColor", "redColor"));
 	cocoa_set_with(text, "setStringValue:", (id)cocoa_str(field));
 	cocoa_postpairwith_func(cocoa_send(ui->wnd, "contentView"),
 		sel_getUid("addSubview:positioned:relativeTo:"), text, NSWindowAbove, slabel);
@@ -681,15 +717,8 @@ NSTextField cocoa_text_field(id gui, ui_field_type kind, char *label, char *fiel
 	return text;
 }
 
-NSButton cocoa_form_button(id window, char *title, char *action, float x, float y) {
-	NSButton button = cocoa_send(cocoa_send_rect(cocoa_alloc("NSButton"), "initWithFrame:", x, y, 80, 25), "autorelease");
-	cocoa_set_with(button, "setTitle:", (id)cocoa_str(title));
-	cocoa_set(button, "setBezelStyle:", NSTexturedSquareBezelStyle);
-	cocoa_postfunc_func(button, sel_registerName("setAction:"), sel_getUid(action));
-	cocoa_set_with(button, "setTarget:", nil);
-	cocoa_set(button, "setAutoresizingMask:", (NSViewMaxXMargin | NSViewMaxYMargin));
-	cocoa_set_with(cocoa_send(window, "contentView"), "addSubview:", button);
-	return button;
+FORCEINLINE NSButton cocoa_form_button(id window, char *title, char *action, float x, float y) {
+	return cocoa_button(window, title, action, x, y, 80, NSTexturedSquareBezelStyle, false);
 }
 
 FORCEINLINE NSView cocoa_content_view(id window) {
@@ -3277,13 +3306,12 @@ static XtActionsRec web_actions[] = {
 	{"quit", quit},
 };
 
-int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height) {
+int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height, bool showtoolbar) {
 	int argc = 0;
 	char **argv = NULL;
 	Widget toolcmd, tooltip = NULL;
 	Pixel color;
 	char b[1024], *p;
-	bool show_bar = 1;
 	int i;
 
 	p = getenv("HOME");
@@ -3311,13 +3339,13 @@ int gui_webview(gui_info *ui, const char *title, const char *url, int width, int
 
 	XtAppAddActions(ui->app_con, web_actions, XtNumber(web_actions));
 	XtResizeWidget(ui->topLevel, ui->width, ui->height, 0);
-	if (show_bar)
+	if (showtoolbar)
 		tooltip = XtVaCreatePopupShell("tooltip", mwTooltipWidgetClass, ui->topLevel, NULL);
 	else
 		MwInitFormat(XtDisplayOfObject(ui->topLevel));
 
 	MwHighlightInit(ui->topLevel);
-	ui->app->code = show_bar;
+	ui->app->code = showtoolbar;
 	ui->wnd = XtVaCreateManagedWidget("topbox",
 		mwRudegridWidgetClass, ui->topLevel,
 		XtNyLayout, "30 0 0 100% 30",
@@ -3342,7 +3370,7 @@ int gui_webview(gui_info *ui, const char *title, const char *url, int width, int
 		NULL);
 
 	XtVaGetValues(ui->statusLine, XtNbackground, &color, NULL);
-	if (show_bar) {
+	if (showtoolbar) {
 		Widget navbar = XtVaCreateManagedWidget("navbar",
 			mwRudegridWidgetClass, ui->wnd,
 			XtNgridy, 0,
@@ -3570,12 +3598,13 @@ int64_t gui_time(void) {
 #endif
 
 #if defined(__APPLE__) || defined(_WIN32)
-FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height) {
+FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height, bool showtoolbar) {
 	ui->web->url = url;
 	ui->web->title = title;
 	ui->web->width = width;
 	ui->web->height = height;
 	ui->web->resizable = 1;
+	ui->web->showtoolbar = showtoolbar;
 	ui->web->debug = 1;
 #if defined(__APPLE__)
 	if (!main_gui_info->bar_info) {
@@ -3604,7 +3633,7 @@ FORCEINLINE void gui_webdestroy(gui_info ui) {
 
 WEBVIEW_API int webview_run(const char *title, const char *url, int width, int height) {
 	gui_info ui = {0};
-	gui_webview(&ui, title, url, width, height);
+	gui_webview(&ui, title, url, width, height, true);
 	gui_webactive(ui);
 	gui_webdestroy(ui);
 	return 0;

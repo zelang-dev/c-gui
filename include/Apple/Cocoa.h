@@ -111,15 +111,22 @@ typedef enum NSEventMask { /* masks for the types of events */
 	NSEventMaskOtherMouseDragged = 1ULL << NSEventTypeOtherMouseDragged,
 } NSEventMask;
 
-enum {
+typedef enum NSAutoresizingMaskOptions {
+	// The view cannot be resized.
 	NSViewNotSizable = 0x00,
+	// The left margin between the view and its superview is flexible.
 	NSViewMinXMargin = 0x01,
+	// The view’s width is flexible.
 	NSViewWidthSizable = 0x02,
+	// The right margin between the view and its superview is flexible.
 	NSViewMaxXMargin = 0x04,
+	// The bottom margin between the view and its superview is flexible.
 	NSViewMinYMargin = 0x08,
+	// The view’s height is flexible.
 	NSViewHeightSizable = 0x10,
+	// The top margin between the view and its superview is flexible.
 	NSViewMaxYMargin = 0x20
-};
+} NSAutoresizingMaskOptions;
 
 typedef enum {
 	NSNoBorder,
@@ -627,12 +634,20 @@ C_API id cocoa_send_status(id instance, const char *selector, NSInteger code);
 C_API id cocoa_init(id instance);
 C_API id cocoa_alloc_class(Class object);
 C_API id cocoa_window(int x, int y, int width, int height, int style, int backing, bool defer);
+C_API NSButton cocoa_button(id window, char *label, char *action, float x, float y, float width,
+	NSBezelStyle style, int location);
+C_API NSTextField cocoa_field(id window, id alignwith, char *inital, float x, float y, float width,
+	ui_field_type kind);
+C_API void cocoa_textcolor(id window, CGFloat red, CGFloat green, CGFloat blue, CGFloat alpha);
+C_API void cocoa_backgroundcolor(id window, CGFloat red, CGFloat green, CGFloat blue, CGFloat alpha);
+
+/* See: https://developer.apple.com/documentation/appkit/standard-colors?language=objc */
+C_API void cocoa_cell_colors(id view, const char *text, const char *background);
 C_API NSView cocoa_content_view(id window);
 C_API NSEvent cocoa_next_event(id instance, unsigned long mask, id expiration, id mode, BOOL deqFlag);
 
 C_API NSString cocoa_str(const char *text);
 C_API NSInteger cocoa_strlen(NSString str);
-C_API BOOL cocoa_str_regex(const char *regexString, NSString stringToEvaluate);
 C_API BOOL cocoa_str_has(NSString str, char *match);
 C_API NSRange cocoa_str_pos(NSString str, char *match, NSInteger options);
 C_API NSString cocoa_sprintf(const char *fmt, ...);
