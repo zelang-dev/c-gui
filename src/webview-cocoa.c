@@ -30,7 +30,6 @@
 #define NSWindowStyleMaskFullScreen (1 << 14)
 #define WKNavigationActionPolicyDownload 2
 #define WKNavigationResponsePolicyAllow 1
-#define WKUserScriptInjectionTimeAtDocumentStart 0
 static id delegate = nil;
 
 static const char *webview_check_url(const char *url) {
@@ -38,25 +37,6 @@ static const char *webview_check_url(const char *url) {
 		return DEFAULT_URL;
 	}
 	return url;
-}
-
-static void webview_window_will_close(id self, SEL cmd, id notification) {
-	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
-	if (w) {
-		w->priv.should_exit = 1;
-		main_gui_info->web->priv.should_exit = 1;
-	}
-}
-
-static void webview_external_invoke(id self, SEL cmd, id contentController,	id message) {
-	webview_t *w = (webview_t *)objc_getAssociatedObject(contentController, "webview");
-	if (w == NULL || w->external_invoke_cb == NULL) {
-		return;
-	}
-
-	w->external_invoke_cb(w, ((const char *(*)(id, SEL))objc_msgSend)(
-		((id(*)(id, SEL))objc_msgSend)(message, sel_getUid("body")),
-		sel_getUid("UTF8String")));
 }
 
 static void run_open_panel(id self, SEL cmd, id webView,
@@ -67,13 +47,10 @@ static void run_open_panel(id self, SEL cmd, id webView,
 		cocoa_send(parameters, "allowsMultipleSelection"));
 	cocoa_set(openPanel, "setCanChooseFiles:", 1);
 
-	((id(*)(id, SEL, void(^)(id)))objc_msgSend)(
-		openPanel, sel_getUid("beginWithCompletionHandler:"), ^(id result) {
+	cocoa_postimp_func(	openPanel, sel_getUid("beginWithCompletionHandler:"), (IMP)^(id result) {
 		if (result == (id)NSModalResponseOK) {
-
 			id urls = cocoa_send(openPanel, "URLs");
 			completionHandler(urls);
-
 		} else {
 			completionHandler(nil);
 		}
@@ -86,8 +63,8 @@ static void run_save_panel(id self, SEL cmd, id download, id filename,
 	id savePanel = cocoa_get("NSSavePanel", "savePanel");
 	cocoa_set(savePanel, "setCanCreateDirectories:", 1);
 	cocoa_set_with(savePanel, "setNameFieldStringValue:", filename);
-	((void(*)(id, SEL, void(^)(id)))objc_msgSend)(savePanel, sel_getUid("beginWithCompletionHandler:"),
-		^(id result) {
+
+	cocoa_postimp_func(savePanel, sel_getUid("beginWithCompletionHandler:"), (IMP)^(id result) {
 		if (result == (id)NSModalResponseOK) {
 			id url = cocoa_send(savePanel, "URL");
 			id path = cocoa_send(url, "path");
@@ -180,21 +157,21 @@ static const char *parse_data_URI_content_type(const char *uri, int *comma_index
 	return strdup(result); // Return a copy of the result (remember to free the allocated memory later)
 }
 
+static char *webview_script =
+"window.external = this;"
+"invoke = function(arg)"
+"	{ webkit.messageHandlers.invoke.postMessage(arg); };"
+"function sendLink()"
+"	{ window.webkit.messageHandlers.newUrlDetected.postMessage(this.href); }"
+"var allLinks = document.links;"
+"for (var i = 0; i < allLinks.length; i++)"
+"	{ allLinks[i].onmouseover = sendLink; }";
+
 int webview_create(gui_info *ui, webview_t *w) {
-
 	w->priv.pool = cocoa_new("NSAutoreleasePool");
-	/*
-	Class __WKScriptMessageHandler = objc_allocateClassPair(
-		objc_getClass("NSObject"), "__WKScriptMessageHandler", 0);
-	class_addMethod(
-		__WKScriptMessageHandler,
-		sel_getUid("userContentController:didReceiveScriptMessage:"),
-		(IMP)webview_external_invoke, "v@:@@");
-	objc_registerClassPair(__WKScriptMessageHandler);
+	w->priv.windowDelegate = cocoa_send((id)ui->delegate, "new");
 
-	id scriptMessageHandler = cocoa_send((id)__WKScriptMessageHandler, "new");
-	*/
-	/***
+/***
 	 _WKDownloadDelegate is an undocumented/private protocol with methods called
 	 from WKNavigationDelegate
 	 References:
@@ -222,41 +199,24 @@ int webview_create(gui_info *ui, webview_t *w) {
 	cocoa_set_pair(wkPref, "setValue:forKey:",
 		cocoa_get_status("NSNumber", "numberWithBool:", !!w->debug),
 		(id)cocoa_str("developerExtrasEnabled"));
-
-	id userController = cocoa_new("WKUserContentController");
-	objc_setAssociatedObject(userController, "webview", (id)(w), OBJC_ASSOCIATION_ASSIGN);
-	cocoa_set_pair(userController, "addScriptMessageHandler:name:",
-		scriptMessageHandler, (id)cocoa_str("invoke"));
 	***/
 
-	/***
-	 In order to maintain compatibility with the other 'webviews' we need to
-	 override window.external.invoke to call
-	 webkit.messageHandlers.invoke.postMessage
+	id webViewConfiguration = cocoa_init(cocoa_alloc("WKWebViewConfiguration"));
+	id userContentController = cocoa_new("WKUserContentController");
+	cocoa_set_pair(userContentController, "addScriptMessageHandler:name:",
+		w->priv.windowDelegate, (id)cocoa_str("invoke"));
+	cocoa_set_pair(userContentController, "addScriptMessageHandler:name:",
+		w->priv.windowDelegate, (id)cocoa_str("newUrlDetected"));
 
-	id windowExternalOverrideScript = cocoa_alloc("WKUserScript");
-	((void(*)(id, SEL, id, int, int))objc_msgSend)(
-		windowExternalOverrideScript,
-		sel_getUid("initWithSource:injectionTime:forMainFrameOnly:"),
-		(id)cocoa_str("window.external = this; invoke = function(arg){ webkit.messageHandlers.invoke.postMessage(arg); };"),
-		WKUserScriptInjectionTimeAtDocumentStart,
-		0);
+	id windowExternalScript = cocoa_alloc("WKUserScript");
+	cocoa_postwithtwo_func(
+		windowExternalScript,
+		sel_getUid("initWithSource:injectionTime:forMainFrameOnly:"), (id)cocoa_str(webview_script),
+		WKUserScriptInjectionTimeAtDocumentEnd, NO);
 
-	cocoa_set_with(userController, "addUserScript:", windowExternalOverrideScript);
-	id config = cocoa_new("WKWebViewConfiguration");
+	cocoa_set_with(userContentController, "addUserScript:", windowExternalScript);
+	cocoa_set_with(webViewConfiguration, "setUserContentController:", userContentController);
 
-	id processPool = cocoa_send(config, "processPool");
-	cocoa_set_with(processPool, "_setDownloadDelegate:", downloadDelegate);
-	cocoa_set_with(config, "setProcessPool:", processPool);
-	cocoa_set_with(config, "setUserContentController:", userController);
-	cocoa_set_with(config, "setPreferences:", wkPref);
-
-	CGRect r = CGRectMake(0, 0, w->width, w->height);
-	w->priv.webview = cocoa_alloc("WKWebView");
-	(void)cocoa_sendview_func(w->priv.webview,
-		sel_getUid("initWithFrame:configuration:"), r, config); ***/
-
-	w->priv.windowDelegate = cocoa_send((id)ui->delegate, "new");
 	if (!delegate) {
 		delegate = (id)AppDelClass;
 #ifdef USE_DEBUG
@@ -272,9 +232,11 @@ int webview_create(gui_info *ui, webview_t *w) {
 			}
 		}
 
-		ui->webView[0] = (WKWebView)cocoa_sendrect_func(cocoa_autorelease("WKWebView"),
-			sel_getUid("initWithFrame:"),
-			CGRectMake(0, 0, w->width, w->height - 25));
+		ui->webView[0] = (WKWebView)cocoa_sendview_func(cocoa_autorelease("WKWebView"),
+			sel_getUid("initWithFrame:configuration:"),
+			CGRectMake(0, 14, w->width, (w->showtoolbar ? w->height - 39 : w->height)),
+			webViewConfiguration);
+
 		if (w->showtoolbar) {
 			class_addMethod(ui->delegate, sel_registerName("webview_home:"), (IMP)webview_home, "v@:@");
 			class_addMethod(ui->delegate, sel_registerName("webview_go_back:"), (IMP)webview_go_back, "v@:@");
@@ -294,6 +256,7 @@ int webview_create(gui_info *ui, webview_t *w) {
 			cocoa_button(ui->window[0], "Go", "webview_go_to:", width + 110, w->height - 22, 40, NSRoundRectBezelStyle, -1);
 		}
 
+		w->statusline = gui_statusline(ui->window[0], ui->webView[0], "", 0, w->width - 12);
 		if (!ui->webView[0]) {
 #ifdef USE_DEBUG
 			fprintf(stderr, "[ObjC]\t\t\twebview_create() -> Failed to create WKWebView\n");
@@ -303,15 +266,18 @@ int webview_create(gui_info *ui, webview_t *w) {
 
 		main_gui_info->window[0] = ui->window[0];
 		main_gui_info->webView[0] = ui->webView[0];
+		main_gui_info->statusLine = w->statusline;
 	}
 
 	w->priv.window = ui->window[0];
 	w->priv.webview = ui->webView[0];
 	cocoa_set_with(ui->window[0], "setDelegate:", w->priv.windowDelegate);
-	cocoa_set_with(ui->webView[0], "setUIDelegate:", w->priv.windowDelegate);
+	cocoa_set_with(ui->webView[0], "setUIDelegate:", userContentController);
 	cocoa_set_with(ui->webView[0], "setNavigationDelegate:", w->priv.windowDelegate);
 	cocoa_set(ui->webView[0], "setAutoresizesSubviews:", 1);
 	cocoa_set(ui->webView[0], "setAutoresizingMask:", (NSViewWidthSizable | NSViewHeightSizable));
+	objc_setAssociatedObject(userContentController, "webview", (id)(w),
+		OBJC_ASSOCIATION_ASSIGN);
 	objc_setAssociatedObject(w->priv.windowDelegate, "webview", (id)(w),
 		OBJC_ASSOCIATION_ASSIGN);
 

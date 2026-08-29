@@ -115,10 +115,13 @@ cocoa_postrect_cb cocoa_postrect_func = (cocoa_postrect_cb)objc_msgSend;
 cocoa_postrectint_cb cocoa_postrectint_func = (cocoa_postrectint_cb)objc_msgSend;
 cocoa_postint_cb cocoa_postint_func = (cocoa_postint_cb)objc_msgSend;
 cocoa_postany_cb cocoa_postany_func = (cocoa_postany_cb)objc_msgSend;
-cocoa_postfunc_cb cocoa_postfunc_func = (cocoa_postfunc_cb)objc_msgSend;
+cocoa_postimp_cb cocoa_postimp_func = (cocoa_postimp_cb)objc_msgSend;
+cocoa_postsel_cb cocoa_postsel_func = (cocoa_postsel_cb)objc_msgSend;
 cocoa_postpair_cb cocoa_postpair_func = (cocoa_postpair_cb)objc_msgSend;
+cocoa_postrectwith_cb cocoa_postrectwith_func = (cocoa_postrectwith_cb)objc_msgSend;
 cocoa_postpairwith_cb cocoa_postpairwith_func = (cocoa_postpairwith_cb)objc_msgSend;
 cocoa_postwithint_cb cocoa_postwithint_func = (cocoa_postwithint_cb)objc_msgSend;;
+cocoa_postwithtwo_cb cocoa_postwithtwo_func = (cocoa_postwithtwo_cb)objc_msgSend;;
 cocoa_postid_cb cocoa_postid_func = (cocoa_postid_cb)objc_msgSend;
 cocoa_post_cb cocoa_post_func = (cocoa_post_cb)objc_msgSend;
 cocoa_model_cb cocoa_model_func = (cocoa_model_cb)objc_msgSend;
@@ -240,7 +243,7 @@ NSButton cocoa_button(id window, char *label, char *action, float x, float y, fl
 	NSButton button = cocoa_send(cocoa_send_rect(cocoa_alloc("NSButton"), "initWithFrame:", x, y, width, 19), "autorelease");
 	cocoa_set_with(button, "setTitle:", (id)cocoa_str(label));
 	cocoa_set(button, "setBezelStyle:", style);
-	cocoa_postfunc_func(button, sel_registerName("setAction:"), sel_getUid(action));
+	cocoa_postsel_func(button, sel_registerName("setAction:"), sel_getUid(action));
 	cocoa_set_with(button, "setTarget:", nil);
 	cocoa_set(button, "setAutoresizingMask:", (location == YES
 		? resize_mask | NSViewMinYMargin
@@ -461,6 +464,10 @@ FORCEINLINE BOOL cocoa_str_has(NSString str, char *match) {
 	return cocoa_str_pos(str, match, NSCaseInsensitiveSearch).location != NSNotFound;
 }
 
+FORCEINLINE BOOL cocoa_str_is(NSString str, char *match) {
+	return (BOOL)cocoa_intwith_func((id)str, sel_getUid("isEqualToString:"), (id)cocoa_str(match));
+}
+
 static FORCEINLINE void terminate_handler(__GUI_MENU__) {
 	if (!main_gui_shutdown && !main_gui_info->bar_info && main_gui_info->web->priv.webview){
 		main_gui_shutdown = true;
@@ -572,7 +579,7 @@ static void verify_form(__GUI_FIELD__) {
 	cocoa_select(ui->app->wnd, "close");
 }
 
-static BOOL AppDel_shouldTerminateAfterLastWindowClosed(AppDelegate *self, SEL selector, id data) {
+static BOOL AppDel_shouldTerminateAfterLastWindowClosed(__GUI_FIELD__) {
 	return YES;
 }
 
@@ -611,7 +618,7 @@ static BOOL AppDel_didFinishLaunching(AppDelegate *self, SEL selector, id data) 
 	return YES;
 }
 
-static void webView_didFinishNavigation(AppDelegate *self, SEL selector, id data) {
+static void webView_didFinishNavigation(__GUI_FIELD__) {
 #ifdef USE_DEBUG
 	fprintf(stderr, "[ObjC]\t\t\tdidFinishNavigation()\n");
 #endif
@@ -620,6 +627,27 @@ static void webView_didFinishNavigation(AppDelegate *self, SEL selector, id data
 #ifdef USE_DEBUG
 	fprintf(stderr, "[ObjC]\t\t\tdidFinishNavigation() -> Updated title [%s]\n", cocoa_tochar(theTitle));
 #endif
+}
+
+static void webView_windowWillClose(__GUI_FIELD__) {
+	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
+	if (w) {
+		w->priv.should_exit = 1;
+		main_gui_info->web->priv.should_exit = 1;
+	}
+}
+
+static void webView_didReceiveScriptMessage(__GUI_FIELD__, id message) {
+	webview_t *w = (webview_t *)objc_getAssociatedObject(data, "webview");
+	if (w) {
+		NSString handler = (NSString)cocoa_send(message, "name");
+		if (cocoa_str_is(handler, "invoke")) {
+			if (w->external_invoke_cb)
+				w->external_invoke_cb(w, cocoa_tochar((NSString)cocoa_send(message, "body")));
+		} else if (cocoa_str_is(handler, "newUrlDetected")) {
+			cocoa_set_with(w->statusline, "setStringValue:", (id)cocoa_send(message, "body"));
+		}
+	}
 }
 
 #include "webview-cocoa.c"
@@ -768,6 +796,22 @@ static BOOL should_end_editing(__GUI_MENU__) {
 	return is_ready;
 }
 
+ui_wnd_t gui_statusline(ui_wnd_t window, ui_wnd_t alignto, const char *message, int y, int width) {
+	ui_wnd_t statusLine = cocoa_send(cocoa_send_rect(cocoa_alloc("NSTextField"), "initWithFrame:",
+		6, y, width, 13), "autorelease");
+	cocoa_set(statusLine, "setBezeled:", NO);
+	cocoa_set(statusLine, "setEditable:", NO);
+	cocoa_set(statusLine, "setSelectable:", NO);
+	cocoa_set(statusLine, "setDrawsBackground:", YES);
+	cocoa_set_with(statusLine, "setFont:", (id)cocoa_font("Arial", 9));
+	cocoa_set_with(statusLine, "setStringValue:", (id)cocoa_str(message));
+	cocoa_set(statusLine, "setAutoresizingMask:", NSViewMinXMargin | NSViewWidthSizable);
+	cocoa_postpairwith_func(cocoa_send(window, "contentView"),
+		sel_getUid("addSubview:positioned:relativeTo:"), statusLine, NSWindowOut, alignto);
+
+	return statusLine;
+}
+
 int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form_cb verify) {
 	int i, y = 0, max_width = 0, spacing = 30;
 	NSTextField text = nil, slabel = nil;
@@ -815,16 +859,7 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 	button2 = cocoa_form_button(ui->wnd, "Cancel", "cancel_form:", 215, 25);
 
 	/* Setup statusline area in form for `error` feedback */
-	ui->statusLine = cocoa_send(cocoa_send_rect(cocoa_alloc("NSTextField"), "initWithFrame:",
-		6, 0, ui->width - 12, 12), "autorelease");
-	cocoa_set(ui->statusLine, "setBezeled:", NO);
-	cocoa_set(ui->statusLine, "setEditable:", NO);
-	cocoa_set(ui->statusLine, "setSelectable:", NO);
-	cocoa_set(ui->statusLine, "setDrawsBackground:", NO);
-	cocoa_set_with(ui->statusLine, "setFont:", (id)ui->font);
-	cocoa_set_with(ui->statusLine, "setStringValue:", (id)cocoa_str("Fill out"));
-	cocoa_postpairwith_func(cocoa_send(ui->wnd, "contentView"),
-		sel_getUid("addSubview:positioned:relativeTo:"), ui->statusLine, NSWindowBelow, nil);
+	ui->statusLine = gui_statusline(ui->wnd, nil, "Fill out", 0, ui->width - 12);
 
 	/* Store provided `Form` for `verify_form:` button click verification process */
 	ui->app->app_array = (void **)fill;
@@ -999,10 +1034,12 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 		Class windelegate = objc_allocateClassPair(objc_getClass("NSObject"), "GuiDelegate", 0);
 		class_addProtocol(windelegate, objc_getProtocol("NSWindowDelegate"));
 		class_replaceMethod(windelegate, sel_getUid("windowWillClose:"),
-			(IMP)webview_window_will_close, "v@:@");
+			(IMP)webView_windowWillClose, "v@:@");
 		class_addMethod(windelegate, sel_getUid("windowShouldClose:"), (IMP)should_close, 0);
 		class_addProtocol(windelegate, objc_getProtocol("WKNavigationDelegate"));
 		class_addProtocol(windelegate, objc_getProtocol("WKUIDelegate"));
+		class_addMethod(windelegate, sel_getUid("userContentController:didReceiveScriptMessage:"),
+			(IMP)webView_didReceiveScriptMessage, "v@:@@");
 		class_addMethod(windelegate,
 			sel_getUid("webView:didFinishNavigation:"),
 			(IMP)webView_didFinishNavigation, "i@:@");

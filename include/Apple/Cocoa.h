@@ -128,6 +128,11 @@ typedef enum NSAutoresizingMaskOptions {
 	NSViewMaxYMargin = 0x20
 } NSAutoresizingMaskOptions;
 
+typedef enum WKUserScriptInjectionTime {
+	WKUserScriptInjectionTimeAtDocumentStart,
+	WKUserScriptInjectionTimeAtDocumentEnd
+} WKUserScriptInjectionTime;
+
 typedef enum {
 	NSNoBorder,
 	NSLineBorder,
@@ -368,6 +373,7 @@ typedef id WKWebView;
 typedef id WebView;
 typedef id NSURLRequest;
 typedef id NSBundle;
+typedef id NSError;
 
 #define NSNotFound NSIntegerMax
 #define NSVariableStatusItemLength (-1)
@@ -399,17 +405,20 @@ typedef void(^IMP_INT)(NSInteger);
 typedef void(*cocoa_modelint_cb)(id, SEL, id, IMP_INT);
 typedef void(*cocoa_post_cb)(id, SEL);
 typedef void(*cocoa_postpoint_cb)(id, SEL, CGPoint);
-typedef void(*cocoa_postrect_cb)(id, SEL, CGRect);
-typedef void(*cocoa_postrectint_cb)(id, SEL, CGRect *, NSInteger);
+typedef void(*cocoa_postrect_cb)(id, SEL, NSRect);
+typedef void(*cocoa_postrectint_cb)(id, SEL, NSRect, NSInteger);
 typedef void(*cocoa_postsize_cb)(id, SEL, CGSize);
 typedef void(*cocoa_postint_cb)(id, SEL, NSInteger);
 typedef void(*cocoa_model_cb)(id, SEL, id, IMP);
 typedef void(*cocoa_postid_cb)(id, SEL, id);
 typedef void(*cocoa_postpair_cb)(id, SEL, id, id);
+typedef void(*cocoa_postrectwith_cb)(id, SEL, NSRect, id);
 typedef void(*cocoa_postpairwith_cb)(id, SEL, id, NSInteger, id);
 typedef void(*cocoa_postwithint_cb)(id, SEL, id, NSInteger);
+typedef void(*cocoa_postwithtwo_cb)(id, SEL, id, NSInteger, NSInteger);
 typedef void(*cocoa_postany_cb)(id, SEL, void *);
-typedef void(*cocoa_postfunc_cb)(id, SEL, SEL);
+typedef void(*cocoa_postimp_cb)(id, SEL, IMP);
+typedef void(*cocoa_postsel_cb)(id, SEL, SEL);
 typedef void(*cocoa_postnotification_cb)(id, SEL, id, SEL, id, id);
 
 C_API const NSUInteger NSMaximumStringLength;
@@ -430,6 +439,7 @@ C_API NSString const NSWindowDidUpdateNotification;
 C_API NSString const NSWindowWillCloseNotification;
 C_API NSString const NSWindowWillStartLiveResizeNotification;
 C_API NSString const NSWindowDidEndLiveResizeNotification;
+C_API NSString WebElementLinkURLKey;
 C_API NSArray NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory directory,
 	NSSearchPathDomainMask domainMask, BOOL expandTilde);
 C_API NSRange NSMakeRange(NSUInteger location, NSUInteger length);
@@ -492,11 +502,14 @@ C_API cocoa_postrect_cb cocoa_postrect_func;
 C_API cocoa_postrectint_cb cocoa_postrectint_func;
 C_API cocoa_postint_cb cocoa_postint_func;
 C_API cocoa_postany_cb cocoa_postany_func;
-C_API cocoa_postfunc_cb cocoa_postfunc_func;
+C_API cocoa_postimp_cb cocoa_postimp_func;
+C_API cocoa_postsel_cb cocoa_postsel_func;
 C_API cocoa_postnotification_cb cocoa_postnotification_func;
 C_API cocoa_postpair_cb cocoa_postpair_func;
+C_API cocoa_postrectwith_cb cocoa_postrectwith_func;
 C_API cocoa_postpairwith_cb cocoa_postpairwith_func;
 C_API cocoa_postwithint_cb cocoa_postwithint_func;
+C_API cocoa_postwithtwo_cb cocoa_postwithtwo_func;
 C_API cocoa_postid_cb cocoa_postid_func;
 C_API cocoa_model_cb cocoa_model_func;
 C_API cocoa_modelint_cb cocoa_modelint_func;
@@ -641,7 +654,45 @@ C_API NSTextField cocoa_field(id window, id alignwith, char *inital, float x, fl
 C_API void cocoa_textcolor(id window, CGFloat red, CGFloat green, CGFloat blue, CGFloat alpha);
 C_API void cocoa_backgroundcolor(id window, CGFloat red, CGFloat green, CGFloat blue, CGFloat alpha);
 
-/* See: https://developer.apple.com/documentation/appkit/standard-colors?language=objc */
+/*
+`Adaptable system colors`
+
+- systemBlueColor - Returns a color object for blue that automatically adapts to vibrancy and accessibility settings.
+- systemBrownColor - Returns a color object for brown that automatically adapts to vibrancy and accessibility settings.
+- systemCyanColor - Returns a color object for cyan that automatically adapts to vibrancy and accessibility settings.
+- systemGrayColor - Returns a color object for gray that automatically adapts to vibrancy and accessibility settings.
+- systemGreenColor - Returns a color object for green that automatically adapts to vibrancy and accessibility settings.
+- systemIndigoColor - Returns a color object for indigo that automatically adapts to vibrancy and accessibility settings.
+- systemMintColor - Returns a color object for mint that automatically adapts to vibrancy and accessibility settings.
+- systemOrangeColor - Returns a color object for orange that automatically adapts to vibrancy and accessibility settings.
+- systemPinkColor - Returns a color object for pink that automatically adapts to vibrancy and accessibility settings.
+- systemPurpleColor - Returns a color object for purple that automatically adapts to vibrancy and accessibility settings.
+- systemRedColor - Returns a color object for red that automatically adapts to vibrancy and accessibility settings.
+- systemTealColor - Returns a color object for teal that automatically adapts to vibrancy and accessibility settings.
+- systemYellowColor - Returns a color object for yellow that automatically adapts to vibrancy and accessibility settings.
+
+`Transparent color`
+
+- clearColor - Returns a color object whose grayscale and alpha values are both 0.0.
+
+`Fixed colors`
+
+- blackColor - Returns a color object whose grayscale value is 0.0 and whose alpha value is 1.0.
+- blueColor - Returns a color object whose RGB value is 0.0, 0.0, 1.0 and whose alpha value is 1.0.
+- brownColor - Returns a color object whose RGB value is 0.6, 0.4, 0.2 and whose alpha value is 1.0.
+- cyanColor - Returns a color object whose RGB value is 0.0, 1.0, 1.0 and whose alpha value is 1.0.
+- darkGrayColor - Returns a color object whose grayscale value is 1/3 and whose alpha value is 1.0.
+- grayColor - Returns a color object whose grayscale value is 0.5 and whose alpha value is 1.0.
+- greenColor - Returns a color object whose RGB value is 0.0, 1.0, 0.0 and whose alpha value is 1.0.
+- lightGrayColor - Returns a color object whose grayscale value is 2/3 and whose alpha value is 1.0.
+- magentaColor - Returns a color object whose RGB value is 1.0, 0.0, 1.0 and whose alpha value is 1.0.
+- orangeColor - Returns a color object whose RGB value is 1.0, 0.5, 0.0 and whose alpha value is 1.0.
+- purpleColor - Returns a color object whose RGB value is 0.5, 0.0, 0.5 and whose alpha value is 1.0.
+- redColor - Returns a color object whose RGB value is 1.0, 0.0, 0.0 and whose alpha value is 1.0.
+- whiteColor - Returns a color object whose grayscale and alpha values are both 1.0.
+- yellowColor - Returns a color object whose RGB value is 1.0, 1.0, 0.0 and whose alpha value is 1.0.
+
+See: https://developer.apple.com/documentation/appkit/standard-colors?language=objc */
 C_API void cocoa_cell_colors(id view, const char *text, const char *background);
 C_API NSView cocoa_content_view(id window);
 C_API NSEvent cocoa_next_event(id instance, unsigned long mask, id expiration, id mode, BOOL deqFlag);
@@ -649,6 +700,7 @@ C_API NSEvent cocoa_next_event(id instance, unsigned long mask, id expiration, i
 C_API NSString cocoa_str(const char *text);
 C_API NSInteger cocoa_strlen(NSString str);
 C_API BOOL cocoa_str_has(NSString str, char *match);
+C_API BOOL cocoa_str_is(NSString str, char *match);
 C_API NSRange cocoa_str_pos(NSString str, char *match, NSInteger options);
 C_API NSString cocoa_sprintf(const char *fmt, ...);
 C_API char *cocoa_tochar(NSString str);

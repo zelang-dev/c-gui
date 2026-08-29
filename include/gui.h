@@ -542,6 +542,7 @@ struct webview {
 	int debug;
 	webview_external_invoke_cb_t external_invoke_cb;
 	struct webview_priv priv;
+	ui_wnd_t statusline;
 	void *userdata;
 };
 
@@ -617,6 +618,7 @@ C_API int gui_menufont(gui_info *, const char *font);
 C_API int gui_menu(gui_info *, int num_menu, menuitem_t *items, int number_items, int menu_id, char *name);
 C_API int gui_handler(gui_info *);
 C_API void gui_cancel(ui_wnd_t);
+C_API ui_wnd_t gui_statusline(ui_wnd_t, ui_wnd_t alignto, const char *message, int y, int width);
 
 C_API int gui_window(gui_info *, const char *title, int width, int height, int buffered);
 C_API int gui_loop(gui_info *);
