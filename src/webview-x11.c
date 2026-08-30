@@ -145,7 +145,7 @@ static void scroll_right(Widget w, XEvent *event, String *params, Cardinal *n) {
 	web_scroll_leftright(w, 0.1);
 }
 
-static void cb_back(__GUI_FIELD__) {
+static void cb_back(__GUI_WEBVIEW__) {
 	gui_info *ui = (gui_info *)client;
 	struct hist *h = ui->backhist;
 	char *u;
@@ -177,7 +177,7 @@ static void cb_back(__GUI_FIELD__) {
 	}
 }
 
-static void cb_forward(__GUI_FIELD__) {
+static void cb_forward(__GUI_WEBVIEW__) {
 	gui_info *ui = (gui_info *)client;
 	struct hist *h = ui->forwhist;
 	char *u;
@@ -209,7 +209,7 @@ static void cb_forward(__GUI_FIELD__) {
 	}
 }
 
-static void cb_reload(__GUI_FIELD__) {
+static void cb_reload(__GUI_WEBVIEW__) {
 	char *u;
 	XtVaGetValues(self, XtNurl, &u, NULL);
 	u = MwStrdup(u);
@@ -218,23 +218,23 @@ static void cb_reload(__GUI_FIELD__) {
 	adjust_scrollbars((gui_info *)client, self);
 }
 
-static void cb_cancel(__GUI_FIELD__) {
+static void cb_cancel(__GUI_WEBVIEW__) {
 	printf("cb_cancel()\n");
 }
 
-static void cb_home(__GUI_FIELD__) {
+static void cb_home(__GUI_WEBVIEW__) {
 	new_url(self, (gui_info *)client, "about:webview");
 }
 
-static void cb_error(__GUI_FIELD__) {
+static void cb_error(__GUI_WEBVIEW__) {
 	MwErrorBox(self, "Nothing to see here.");
 }
 
-static void cb_click(__GUI_FIELD__) {
+static void cb_click(__GUI_WEBVIEW__) {
 	new_url(self, client, (char *)data);
 }
 
-static void cb_open(__GUI_FIELD__) {
+static void cb_open(__GUI_WEBVIEW__) {
 	gui_info *ui = (gui_info *)client;
 	static char path[1024];
 	char name[1024] = "";
@@ -252,7 +252,7 @@ static void cb_open(__GUI_FIELD__) {
 	}
 }
 
-static void cb_save(__GUI_FIELD__) {
+static void cb_save(__GUI_WEBVIEW__) {
 	gui_info *ui = (gui_info *)client;
 	static char path[1024];
 	char name[1024] = "";
@@ -272,7 +272,7 @@ static void cb_save(__GUI_FIELD__) {
 	}
 }
 
-static void cb_url(__GUI_FIELD__) {
+static void cb_url(__GUI_WEBVIEW__) {
 	gui_info *ui = (gui_info *)client;
 	char *u = (char *)data;
 	if (ui->app->code)
@@ -281,7 +281,7 @@ static void cb_url(__GUI_FIELD__) {
 	adjust_scrollbars(ui, self);
 }
 
-static void cb_loc(__GUI_FIELD__) {
+static void cb_loc(__GUI_WEBVIEW__) {
 	gui_info *ui = (gui_info *)client;
 	int i;
 	char *u;
@@ -312,7 +312,7 @@ static void cb_loc(__GUI_FIELD__) {
 		NULL);
 }
 
-static void cb_vscroll_jump(__GUI_FIELD__) {
+static void cb_vscroll_jump(__GUI_WEBVIEW__) {
 	gui_info *ui = (gui_info *)client;
 	float top;
 	int top_row, th;
@@ -323,7 +323,7 @@ static void cb_vscroll_jump(__GUI_FIELD__) {
 	XtVaSetValues(self, XtNtopRow, top_row, NULL);
 }
 
-static void cb_vscroll_scroll(__GUI_FIELD__) {
+static void cb_vscroll_scroll(__GUI_WEBVIEW__) {
 	gui_info *ui = (gui_info *)client;
 	int i = (long)data;
 	Dimension length, height;

@@ -1318,40 +1318,73 @@ FORCEINLINE void webview_exit(webview_t *w) {
 	SetFocus(w->priv.hwnd);
 }*/
 
-FORCEINLINE void webview_go_back(webview_t *w) {
+// Convert UTF-8 string to UTF-16 wide string
+static wchar_t *utf8_to_utf16(const char *utf8_str) {
+	if (!utf8_str) {
+		return NULL;
+	}
+
+	// Get required buffer size (in wchar_t units)
+	int wide_len = MultiByteToWideChar(CP_UTF8, 0, utf8_str, -1, NULL, 0);
+	if (wide_len == 0) {
+		fprintf(stderr, "Error: MultiByteToWideChar failed (code %lu)\n", GetLastError());
+		return NULL;
+	}
+
+	// Allocate buffer for UTF-16 string
+	wchar_t *wide_str = (wchar_t *)malloc(wide_len * sizeof(wchar_t));
+	if (!wide_str) {
+		fprintf(stderr, "Error: Memory allocation failed\n");
+		return NULL;
+	}
+
+	// Perform the conversion
+	if (MultiByteToWideChar(CP_UTF8, 0, utf8_str, -1, wide_str, wide_len) == 0) {
+		fprintf(stderr, "Error: MultiByteToWideChar failed (code %lu)\n", GetLastError());
+		free(wide_str);
+		return NULL;
+	}
+
+	return wide_str;
+}
+
+FORCEINLINE void webview_go_back(__GUI_WEBVIEW__) {
 	BOOL canGoBack = FALSE;
-	w->priv.webview2->get_CanGoBack(&canGoBack);
+	self->lpVtbl->get_CanGoBack(self, &canGoBack);
 	if (canGoBack)
-		w->priv.webview2->GoBack();
+		self->lpVtbl->GoBack(self);
 }
 
-FORCEINLINE void webview_go_forward(webview_t *w) {
+FORCEINLINE void webview_go_forward(__GUI_WEBVIEW__) {
 	BOOL canGoForward = FALSE;
-	w->priv.webview2->get_CanGoForward(&canGoForward);
+	self->lpVtbl->get_CanGoForward(self, &canGoForward);
 	if (canGoForward)
-		w->priv.webview2->GoForward();
+		self->lpVtbl->GoForward(self);
 }
 
-FORCEINLINE void webview_reload(webview_t *w) {
-	w->priv.webview2->Reload();
+FORCEINLINE void webview_reload(__GUI_WEBVIEW__) {
+	self->lpVtbl->Reload(self);
 }
 
-FORCEINLINE void webview_stop(webview_t *w) {
-	w->priv.webview2->Stop();
+FORCEINLINE void webview_stop(__GUI_WEBVIEW__) {
+	self->lpVtbl->Stop(self);
 }
 
 FORCEINLINE void webview_set_html(webview_t *w, const char *html) {
-	w->priv.webview2->NavigateToString(widen_string(html));
+	wchar_t *whtml = utf8_to_utf16(html);
+	w->priv.webview2->webview->lpVtbl->NavigateToString(w->priv.webview2->webview, whtml);
+	free(whtml);
 }
 
 FORCEINLINE void webview_navigate(webview_t *w, const char *url) {
-	char wurl = widen_string(url);
-	w->priv.webview2->Navigate(wurl);
+	wchar_t *wurl = utf8_to_utf16(url);
+	w->priv.webview2->webview->lpVtbl->Navigate(w->priv.webview2->webview, wurl);
+	free(wurl);
 }
 
 FORCEINLINE char *webview_get_title(webview_t *w) {
 	LPWSTR wtitle;
-	w->priv.webview2->get_DocumentTitle(&wtitle);
+	w->priv.webview2->webview->lpVtbl->get_DocumentTitle(w->priv.webview2->webview, &wtitle);
 	int length = WideCharToMultiByte(CP_UTF8, 0, wtitle, -1, 0, 0, NULL, NULL);
 	char *title = malloc(length);
 	WideCharToMultiByte(CP_UTF8, 0, wtitle, -1, title, length, NULL, NULL);
@@ -1360,7 +1393,7 @@ FORCEINLINE char *webview_get_title(webview_t *w) {
 
 FORCEINLINE char *webview_get_url(webview_t *w) {
 	LPWSTR wurl;
-	w->priv.webview2->get_Source(&wurl);
+	w->priv.webview2->webview->lpVtbl->get_Source(w->priv.webview2->webview, &wurl);
 	int length = WideCharToMultiByte(CP_UTF8, 0, wurl, -1, 0, 0, NULL, NULL);
 	char *url = malloc(length);
 	WideCharToMultiByte(CP_UTF8, 0, wurl, -1, url, length, NULL, NULL);

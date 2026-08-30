@@ -409,7 +409,7 @@ FORCEINLINE void webview_navigate(webview_t *w, const char *url) {
 	cocoa_set_with(w->priv.webview, "loadRequest:", cocoa_get_with("NSURLRequest", "requestWithURL:", nsURL));
 }
 
-FORCEINLINE void webview_go_to(__GUI_FIELD__) {
+FORCEINLINE void webview_go_to(__GUI_WEBVIEW__) {
 	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
 	if (w) {
 		NSTextField url = (NSTextField)w->userdata;
@@ -422,7 +422,7 @@ FORCEINLINE void webview_go_to(__GUI_FIELD__) {
 	}
 }
 
-FORCEINLINE void webview_home(__GUI_FIELD__) {
+FORCEINLINE void webview_home(__GUI_WEBVIEW__) {
 	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
 	if (w) {
 		id nsURL = cocoa_get_with("NSURL", "URLWithString:", (id)cocoa_str(w->url));
@@ -445,25 +445,25 @@ FORCEINLINE void webview_set_html(webview_t *w, const char *html) {
 	cocoa_set_pair(w->priv.webview, "loadHTMLString:baseURL:", (id)cocoa_str(html), nil);
 }
 
-FORCEINLINE void webview_go_back(__GUI_FIELD__) {
+FORCEINLINE void webview_go_back(__GUI_WEBVIEW__) {
 	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
 	if (w && (bool)cocoa_status(w->priv.webview, "canGoBack"))
 		cocoa_select(w->priv.webview, "goBack");
 }
 
-FORCEINLINE void webview_go_forward(__GUI_FIELD__) {
+FORCEINLINE void webview_go_forward(__GUI_WEBVIEW__) {
 	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
 	if (w && (bool)cocoa_status(w->priv.webview, "canGoForward"))
 		cocoa_select(w->priv.webview, "goForward");
 }
 
-FORCEINLINE void webview_reload(__GUI_FIELD__) {
+FORCEINLINE void webview_reload(__GUI_WEBVIEW__) {
 	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
 	if (w)
 		cocoa_select(w->priv.webview, "reload");
 }
 
-FORCEINLINE void webview_stop(__GUI_FIELD__) {
+FORCEINLINE void webview_stop(__GUI_WEBVIEW__) {
 	webview_t *w = (webview_t *)objc_getAssociatedObject(self, "webview");
 	if (w)
 		cocoa_select(w->priv.webview, "stopLoading");

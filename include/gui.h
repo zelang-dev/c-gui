@@ -38,7 +38,9 @@ typedef struct Buttons_s {
 #define __GUI_MENU__ 	id self, SEL selector, id data
 #define __GUI_FILE__ 	id self, NSString file
 #define __GUI_FIELD__ 	__GUI_MENU__
+#define __GUI_WEBVIEW__	__GUI_MENU__
 #elif defined(_WIN32)
+#define COBJMACROS
 #include <windows.h>
 #include <commctrl.h>
 #include <strsafe.h>
@@ -57,6 +59,7 @@ struct webview_priv {
 	DWORD saved_ex_style;
 	RECT saved_rect;
 	webview2 *webview2;
+	struct ICoreWebView2Vtbl view;
 };
 
 typedef struct _MSGBOXDATA {
@@ -92,11 +95,13 @@ typedef struct ButtonW {
 #define __GUI_MENU__ 	ui_t *self, void *data
 #define __GUI_FILE__ 	ui_t *self, const char *file
 #define __GUI_FIELD__ 	__GUI_MENU__
+#define __GUI_WEBVIEW__	ICoreWebView2 *self, void *data
 #else
 #define lucida "lucidasans-bold-8"
 #define __GUI_MENU__ 	ui_t *self, void *data
 #define __GUI_FILE__ 	Widget self, XtPointer client, XtPointer data
 #define __GUI_FIELD__ 	__GUI_FILE__
+#define __GUI_WEBVIEW__ __GUI_FILE__
 #define _DEFAULT_SOURCE 1
 #define ARROW_SCROLLBAR 1
 #include <GL/gl.h>
@@ -763,24 +768,24 @@ WEBVIEW_API void webview_navigate(webview_t *w, const char *url);
 /* Set webview HTML directly.
  *
  * Example: `webview_set_html(w, "<h1>Hello</h1>");` */
-WEBVIEW_API void webview_set_html(webview_t *w, const char *html);
+WEBVIEW_API void webview_set_html(webview_t *w, const char *url);
 
-WEBVIEW_API void webview_go_to(__GUI_FIELD__);
+WEBVIEW_API void webview_go_to(__GUI_WEBVIEW__);
 
 // Go home
-WEBVIEW_API void webview_home(__GUI_FIELD__);
+WEBVIEW_API void webview_home(__GUI_WEBVIEW__);
 
 // Go back
-WEBVIEW_API void webview_go_back(__GUI_FIELD__);
+WEBVIEW_API void webview_go_back(__GUI_WEBVIEW__);
 
 // Go forward
-WEBVIEW_API void webview_go_forward(__GUI_FIELD__);
+WEBVIEW_API void webview_go_forward(__GUI_WEBVIEW__);
 
 // Reload page
-WEBVIEW_API void webview_reload(__GUI_FIELD__);
+WEBVIEW_API void webview_reload(__GUI_WEBVIEW__);
 
 // Stop loading page
-WEBVIEW_API void webview_stop(__GUI_FIELD__);
+WEBVIEW_API void webview_stop(__GUI_WEBVIEW__);
 
 // Get current page title
 WEBVIEW_API char *webview_get_title(webview_t *w);

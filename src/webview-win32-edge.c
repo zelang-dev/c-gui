@@ -1,6 +1,7 @@
 
 #ifdef _WIN32
 #include <stddef.h>
+#include <EventToken.h>
 //#include <stdio.h>
 
 #define WEBVIEW2_WIN32_DISABLE_AUTO_DETECT "WEBVIEW2_WIN32_DISABLE_AUTO_DETECT"
