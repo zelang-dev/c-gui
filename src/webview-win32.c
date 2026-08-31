@@ -777,6 +777,39 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT uMsg, WPARAM wParam,
 				return TRUE;
 			}
 			return EmbedBrowserObject(w);
+		case WM_ERASEBKGND:
+			{
+				HDC hdc = (HDC)wParam;
+				RECT rc;
+				GetClientRect(hwnd, &rc);
+				HBRUSH brush = CreateSolidBrush(RGB(255, 255, 255)); // white background
+				FillRect(hdc, &rc, brush);
+				DeleteObject(brush);
+				return true; // background erased
+			}
+		case WM_GETMINMAXINFO:
+			{
+	   			// Enforce minimum window size
+				MINMAXINFO *mmi = (MINMAXINFO *)lParam;
+				mmi->ptMinTrackSize.x = 350;
+				mmi->ptMinTrackSize.y = 320;
+				break;
+			}
+		case WM_COMMAND:
+			if (w && w->showtoolbar) {
+				ICoreWebView2 *wv = w->priv.webview2->webview;
+				int action = LOWORD(wParam);
+				if (action == WEBVIEW_ID_GUI_BACK && wv) {
+					webview_go_back(wv, NULL);
+				} else if (action == WEBVIEW_ID_GUI_FORWARD && wv) {
+					webview_go_forward(wv, NULL);
+				} else if (action == WEBVIEW_ID_GUI_HOME && wv) {
+					webview_home(wv, (void *)w->url);
+				} else if (action == WEBVIEW_ID_GUI_GOTO && wv) {
+					webview_go_to(wv, (void *)w->userdata);
+				}
+			}
+			break;
 		case WM_DESTROY:
 			if (webview_webview2_enabled) {
 				ReleaseWebView2(w->priv.webview2);
@@ -788,6 +821,9 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT uMsg, WPARAM wParam,
 			return TRUE;
 		case WM_SIZE:
 			GetClientRect(hwnd, &rect);
+			if (w->showtoolbar)
+				rect.top += 20; // Leave space for buttons
+
 			if (webview_webview2_enabled) {
 				WebView2SetBounds(w->priv.webview2, rect);
 			} else {
@@ -795,9 +831,17 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT uMsg, WPARAM wParam,
 				IOleObject *browser = *w->priv.browser;
 				if (browser->lpVtbl->QueryInterface(browser, iid_unref(&IID_IWebBrowser2),
 					(void **)&webBrowser2) == S_OK) {
+					if (w->showtoolbar)
+						webBrowser2->lpVtbl->put_Top(webBrowser2, rect.top);
 					webBrowser2->lpVtbl->put_Width(webBrowser2, rect.right);
 					webBrowser2->lpVtbl->put_Height(webBrowser2, rect.bottom);
 				}
+			}
+
+			if (w->showtoolbar) {
+				int editWidth = LOWORD(lParam) - 150;
+				MoveWindow((HWND)w->userdata, 108, 0, editWidth, 20, TRUE);
+				MoveWindow(w->priv.hWndGoto, editWidth + 111, 0, 35, 20, TRUE);
 			}
 			return TRUE;
 		case WM_WEBVIEW_READY: {
@@ -918,6 +962,14 @@ int webview_create(gui_info *ui, webview_t *w) {
 	}
 
 	SetWindowLongPtr(w->priv.hwnd, GWLP_USERDATA, (LONG_PTR)w);
+	if (w->showtoolbar) {
+		windows_button(w->priv.hwnd, "Home", WEBVIEW_ID_GUI_HOME, 5, 0, 45);
+		w->priv.hWndBack = windows_button(w->priv.hwnd, "<", WEBVIEW_ID_GUI_BACK, 53, 0, 25);
+		w->priv.hWndForward = windows_button(w->priv.hwnd, ">", WEBVIEW_ID_GUI_FORWARD, 80, 0, 25);
+		int width = w->width - 150;
+		w->userdata = (void *)windows_field(w->priv.hwnd, NULL, "https://", 108, 0, width, field_url, WEBVIEW_ID_GUI_FIELD);
+		w->priv.hWndGoto = windows_button(w->priv.hwnd, "Go", WEBVIEW_ID_GUI_GOTO, width + 111, 0, 35);
+	}
 
 	if (!webview_webview2_enabled) {
 		DisplayHTMLPage(w);
@@ -1362,6 +1414,21 @@ FORCEINLINE void webview_go_forward(__GUI_WEBVIEW__) {
 		self->lpVtbl->GoForward(self);
 }
 
+FORCEINLINE void webview_home(__GUI_WEBVIEW__) {
+	wchar_t *wurl = utf8_to_utf16((const char *)data);
+	self->lpVtbl->Navigate(self, wurl);
+	free(wurl);
+}
+
+FORCEINLINE void webview_go_to(__GUI_WEBVIEW__) {
+	ui_field_str(curl, data);
+	if (is_ValidUrl(curl)) {
+		wchar_t *wurl = utf8_to_utf16((const char *)curl);
+		self->lpVtbl->Navigate(self, wurl);
+		free(wurl);
+	}
+}
+
 FORCEINLINE void webview_reload(__GUI_WEBVIEW__) {
 	self->lpVtbl->Reload(self);
 }
@@ -1399,6 +1466,4 @@ FORCEINLINE char *webview_get_url(webview_t *w) {
 	WideCharToMultiByte(CP_UTF8, 0, wurl, -1, url, length, NULL, NULL);
 	return url;
 }
-
-FORCEINLINE void webview_print_log(const char *s) { OutputDebugString(s); }
 #endif

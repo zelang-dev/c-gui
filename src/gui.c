@@ -1640,27 +1640,42 @@ static LRESULT CALLBACK gui_wndproc_form(HWND hwnd, UINT msg, WPARAM wParam, LPA
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+HWND windows_field(ui_wnd_t window, ui_wnd_t alignto, char *area, float x, float y, float width,
+	ui_field_type kind, uintptr_t tag) {
+	int estyle = WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP | ES_AUTOHSCROLL | ES_LEFT;
+	HWND hEdit = CreateWindow("Edit", area, (kind == field_secret ? estyle | ES_PASSWORD : estyle), x, y,
+		width, 20, window, (HMENU)(tag), (HINSTANCE)alignto, NULL);
+	SendMessage(hEdit, WM_SETFONT, (WPARAM)GetStockObject(DEVICE_DEFAULT_FONT), MAKELPARAM(FALSE, 0));
+	return hEdit;
+}
+
 HWND windows_text_field(gui_info *ui, ui_field_type kind, char *label, char *field,
 	float x, float y, float width, uintptr_t tag) {
-	int estyle = WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP;
-	HWND hEdit;
 	if (label) {
-		hEdit = CreateWindow("Static", label, WS_CHILD | WS_VISIBLE | SS_LEFT, x + 1, y - 24,
+		HWND hEdit = CreateWindow("Static", label, WS_CHILD | WS_VISIBLE | SS_LEFT, x + 1, y - 24,
 			width, 11, ui->wnd, (HMENU)ID_GUI_STATIC, NULL, NULL);
 		SendMessage(hEdit, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
 	}
 
-	hEdit = CreateWindow("Edit", field, (kind == field_secret ? estyle | ES_PASSWORD : estyle), x, (y - 10),
-		width, 21, ui->wnd, (HMENU)(tag), NULL, NULL);
-	SendMessage(hEdit, WM_SETFONT, (WPARAM)main_gui_info->bar_info->font_info, MAKELPARAM(FALSE, 0));
-	return hEdit;
+	return windows_field(ui->wnd, NULL, field, x, (y - 10), width, kind, tag);
 }
 
-HWND windows_form_button(gui_info *ui, char *title, intptr_t action, float x, float y) {
-	HWND button = CreateWindow("Button", title, WS_VISIBLE | WS_CHILD | BS_PUSHLIKE | WS_TABSTOP, x, y, 80, 25,
-		ui->wnd, (HMENU)(action), NULL, NULL);
+HWND windows_button(ui_wnd_t window, char *label, intptr_t action, float x, float y, float width) {
+	HWND button = CreateWindow("Button", label, WS_VISIBLE | WS_CHILD | BS_PUSHLIKE | WS_TABSTOP,
+		x, y, width, 20, window, (HMENU)(action), NULL, NULL);
 	SendMessage(button, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
 	return button;
+}
+
+FORCEINLINE HWND windows_form_button(gui_info *ui, char *title, intptr_t action, float x, float y) {
+	return windows_button(ui->wnd, title, action, x, y, 80);
+}
+
+FORCEINLINE ui_wnd_t gui_statusline(ui_wnd_t window, ui_wnd_t alignto, const char *message, int y, int width) {
+	ui_wnd_t hEdit = CreateWindow(STATUSCLASSNAME, message, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+		6, y, width, 13, window, (HMENU)ID_GUI_STATUS, (HINSTANCE)alignto, NULL);
+	SendMessage(hEdit, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
+	return hEdit;
 }
 
 int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form_cb verify) {
@@ -1719,10 +1734,7 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 	windows_form_button(ui, "Cancel", ID_GUI_CANCEL, 215, (ui->height - 83));
 
 	/* Setup statusline area in form for `error` feedback*/
-	hEdit = CreateWindow(STATUSCLASSNAME, "Fill out", WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
-		0, ui->height, (ui->width), 5, ui->wnd, (HMENU)ID_GUI_STATUS, NULL, NULL);
-	SendMessage(hEdit, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
-
+	hEdit = gui_statusline(ui->wnd, NULL, "Fill out", ui->height, ui->width);
 	ui->app->app_array = (void **)fill;
 	ShowWindow(ui->wnd, SW_NORMAL);
 	UpdateWindow(ui->wnd);
@@ -2110,6 +2122,33 @@ int gui_menufont(gui_info *ui, const char *font) {
 
 FORCEINLINE int gui_handler(gui_info *ui) {
 	while (GetMessage(&ui->msg, NULL, 0, 0)) {
+		if (ui->is_webview) {
+			UINT message = ui->msg.message;
+			if (message == WM_QUIT) {
+				break;
+			} else if (message == WM_COMMAND || message == WM_KEYDOWN || message == WM_KEYUP) {
+				if (!webview_webview2_enabled) {
+					HRESULT r = S_OK;
+					IWebBrowser2 *webBrowser2;
+					IOleObject *browser = *ui->web->priv.browser;
+					if (browser->lpVtbl->QueryInterface(browser, iid_unref(&IID_IWebBrowser2),
+						(void **)&webBrowser2) == S_OK) {
+						IOleInPlaceActiveObject *pIOIPAO;
+						if (browser->lpVtbl->QueryInterface(
+							browser, iid_unref(&IID_IOleInPlaceActiveObject),
+							(void **)&pIOIPAO) == S_OK) {
+							r = pIOIPAO->lpVtbl->TranslateAccelerator(pIOIPAO, &ui->msg);
+							pIOIPAO->lpVtbl->Release(pIOIPAO);
+						}
+						webBrowser2->lpVtbl->Release(webBrowser2);
+					}
+
+					if (r != S_FALSE)
+						continue;
+				}
+			}
+		}
+
 		if (!IsDialogMessage(ui->wnd, &ui->msg)) {
 			TranslateMessage(&ui->msg);
 			DispatchMessage(&ui->msg);
@@ -3643,12 +3682,15 @@ FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, in
 	ui->web->resizable = 1;
 	ui->web->showtoolbar = showtoolbar;
 	ui->web->debug = 1;
+	if (!main_gui_info->bar_info) {
+		ui->web->width = main_gui_info->width;
+		ui->web->height = main_gui_info->height;
+	}
+
 #if defined(__APPLE__)
 	if (!main_gui_info->bar_info) {
 		cocoa_set_with(main_gui_info->wnd, "setTitle:", (id)cocoa_str(main_gui_info->title));
 		main_gui_info->window[0] = main_gui_info->wnd;
-		ui->web->width = main_gui_info->width;
-		ui->web->height = main_gui_info->height;
 	}
 
 	ui->webView[0] = main_gui_info->webView[0];
@@ -3660,7 +3702,14 @@ FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, in
 }
 
 FORCEINLINE void gui_webactive(gui_info ui) {
+#if defined(__APPLE__)
 	webview_loop(ui.web, 1);
+#else
+	ui.is_webview = 1;
+	ui.wnd = ui.web->priv.hwnd;
+	gui_handler(&ui);
+	ui.is_webview = 0;
+#endif
 }
 
 FORCEINLINE void gui_webdestroy(gui_info ui) {
@@ -3721,4 +3770,10 @@ WEBVIEW_API int webview_inject_css(webview_t *w, const char *css) {
 	free(js);
 	free(esc);
 	return r;
+}
+
+FORCEINLINE void webview_print_log(const char *s) {
+#ifdef USE_DEBUG
+	fprintf(stderr, "%s\n", s);
+#endif
 }

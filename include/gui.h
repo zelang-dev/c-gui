@@ -17,6 +17,7 @@ enum {
 	ID_GUI_CONTROL = 2000,
 	ID_GUI_CONFIRM,
 	ID_GUI_CANCEL,
+	ID_GUI_RESET,
 	ID_GUI_STATUS = 3000,
 	ID_GUI_ERROR,
 	ID_GUI_VERIFIED,
@@ -59,7 +60,7 @@ struct webview_priv {
 	DWORD saved_ex_style;
 	RECT saved_rect;
 	webview2 *webview2;
-	struct ICoreWebView2Vtbl view;
+	HWND hWndBack, hWndForward, hWndGoto;
 };
 
 typedef struct _MSGBOXDATA {
@@ -573,6 +574,7 @@ struct gui_info_s {
 	webview_t web[1];
 #endif
 #if defined(_WIN32)
+	BOOL is_webview;
 	WNDCLASSEX wc;
 	MSG msg;
 	HINSTANCE hinst;
@@ -603,9 +605,6 @@ struct gui_info_s {
 #endif
 };
 
-C_API size_t str_length(ui_form_t field);
-C_API ui_bool str_is_regex(const char *pattern, ui_str_t match);
-C_API ui_bool str_field_valid(ui_form_t field, ui_field form);
 
 C_API void gui_open_dialog(__GUI_MENU__);
 C_API void gui_save_dialog(__GUI_MENU__);
@@ -649,11 +648,12 @@ C_API int gui_webview(gui_info *ui, const char *title, const char *url, int widt
 C_API void gui_webactive(gui_info ui);
 C_API void gui_webdestroy(gui_info ui);
 
+C_API size_t str_length(ui_form_t field);
+C_API ui_bool str_field_valid(ui_form_t field, ui_field form);
 C_API ui_bool str_is_regex(const char *pattern, ui_str_t match);
 C_API ui_bool is_ValidUrl(ui_str_t text);
 C_API ui_bool is_ValidEmail(ui_str_t text);
 C_API ui_bool is_ValidPassword(ui_form_t field);
-C_API size_t str_length(ui_form_t field);
 
 #define DEFAULT_URL                                                            \
   "data:text/"                                                                 \
@@ -710,6 +710,15 @@ enum webview_dialog_flag {
 	WEBVIEW_DIALOG_FLAG_WARNING = (2 << 1),
 	WEBVIEW_DIALOG_FLAG_ERROR = (3 << 1),
 	WEBVIEW_DIALOG_FLAG_ALERT_MASK = (3 << 1),
+};
+
+enum {
+	WEBVIEW_ID_GUI_BACK = ID_GUI_RESET + 1,
+	WEBVIEW_ID_GUI_FORWARD,
+	WEBVIEW_ID_GUI_HOME,
+	WEBVIEW_ID_GUI_GOTO,
+	WEBVIEW_ID_GUI_FIELD,
+	WEBVIEW_ID_GUI_RELOAD,
 };
 
 typedef void (*webview_dispatch_fn)(webview_t *w, void *arg);

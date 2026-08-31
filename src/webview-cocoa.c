@@ -250,7 +250,7 @@ int webview_create(gui_info *ui, webview_t *w) {
 			cocoa_button(ui->window[0], ">", "webview_go_forward:", 78, w->height - 22, 25, NSRoundRectBezelStyle, true);
 
 			int width = w->width - 162;
-			NSTextField field = cocoa_field(ui->window[0], ui->webView[0], "", 105,
+			NSTextField field = cocoa_field(ui->window[0], ui->webView[0], "https://", 105,
 				w->height - 22, width, field_url);
 			w->userdata = (void *)field;
 			cocoa_button(ui->window[0], "Go", "webview_go_to:", width + 110, w->height - 22, 40, NSRoundRectBezelStyle, -1);
@@ -567,5 +567,4 @@ void webview_exit(webview_t *w) {
 	object_dispose(w->priv.windowDelegate);
 }
 
-FORCEINLINE void webview_print_log(const char *s) { fprintf(stderr, "%s\n", s); }
 #endif

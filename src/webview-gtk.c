@@ -286,7 +286,4 @@ WEBVIEW_API void webview_dispatch(webview_t *w, webview_dispatch_fn fn,
 }
 
 WEBVIEW_API void webview_exit(webview_t *w) { (void)w; }
-WEBVIEW_API void webview_print_log(const char *s) {
-  fprintf(stderr, "%s\n", s);
-}
 #endif

@@ -8,6 +8,10 @@
 #define WEBVIEW2_WIN32_PATH "WEBVIEW2_WIN32_PATH"
 #define WEBVIEW2_WIN32_USER_DATA_NO_APPDATA "WEBVIEW2_WIN32_USER_DATA_NO_APPDATA"
 
+#ifndef WEBVIEW2_WIN32_LIB
+#	define WEBVIEW2_WIN32_LIB ".\\"
+#endif
+
 #define WEBVIEW2_BROWSER_EXECUTABLE_FOLDER "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER"
 #define WEBVIEW2_USER_DATA_FOLDER "WEBVIEW2_USER_DATA_FOLDER"
 
@@ -70,11 +74,13 @@ static void findWebView2BrowserExecutableFolder() {
   }
 }
 
-static TCHAR *getWebView2LoaderFileName(TCHAR *modulePath) {
-  char * webView2Win32Path = getenv(WEBVIEW2_WIN32_PATH);
+static CHAR *getWebView2LoaderFileName(CHAR *modulePath) {
+	char *webView2Win32Path = getenv(WEBVIEW2_WIN32_PATH);
   if ((webView2Win32Path != NULL) && (strlen(webView2Win32Path) > MAX_PATH)) {
     webView2Win32Path = NULL;
   }
+
+  webView2Win32Path = WEBVIEW2_WIN32_LIB;
   if (webView2Win32Path == NULL) {
     strcpy(modulePath, WEBVIEW2_LOADER_DLL);
   } else {
@@ -83,21 +89,21 @@ static TCHAR *getWebView2LoaderFileName(TCHAR *modulePath) {
   return modulePath;
 }
 
-static WCHAR *getUserData(WCHAR *buffer, size_t sizeOfBuffer) {
-  WCHAR filename[MAX_PATH];
-  WCHAR *appData = _wgetenv(L"APPDATA");
+static CHAR *getUserData(CHAR *buffer, size_t sizeOfBuffer) {
+	CHAR filename[MAX_PATH];
+  CHAR *_appData = getenv("APPDATA");
   char *noAppData = getenv(WEBVIEW2_WIN32_USER_DATA_NO_APPDATA);
-  if ((getenv(WEBVIEW2_USER_DATA_FOLDER) == NULL) && (appData != NULL) && (noAppData == NULL)) {
-    GetModuleFileNameW(NULL, filename, MAX_PATH);
-    WCHAR *executableName = wcsrchr(filename, L'\\');
+  if ((getenv(WEBVIEW2_USER_DATA_FOLDER) == NULL) && (_appData != NULL) && (noAppData == NULL)) {
+    GetModuleFileNameA(NULL, filename, MAX_PATH);
+	char *executableName = strrchr(filename, '\\');
     if (executableName != NULL) {
       executableName++;
     } else {
       executableName = filename;
     }
-    swprintf(buffer, sizeOfBuffer, L"%ls\\%ls.WebView2", appData, executableName);
+	snprintf(buffer, sizeOfBuffer, "%s\\%s.WebView2", _appData, executableName);
     webview_print_log("getUserData()");
-    OutputDebugStringW(buffer);
+    OutputDebugStringA(buffer);
     return buffer;
   }
   return NULL;
@@ -112,7 +118,7 @@ typedef void (*WebView2CallbackFn) (webview2 *wv, const char *message, void *con
 #define CREATE_COREWEBVIEW2_ENVIRONMENTWITHOPTIONS_FN_NAME "CreateCoreWebView2EnvironmentWithOptions"
 
 typedef HRESULT (*GetWebView2BrowserVersionInfoFnType) (PCWSTR browserExecutableFolder, LPWSTR* versionInfo);
-typedef HRESULT (*CreateCoreWebView2EnvironmentWithOptionsFnType) (PCWSTR browserExecutableFolder, PCWSTR userDataFolder, ICoreWebView2EnvironmentOptions* environmentOptions, ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler* environment_created_handler);
+typedef HRESULT (*CreateCoreWebView2EnvironmentWithOptionsFnType) (PCWSTR browserExecutableFolder, PCSTR userDataFolder, ICoreWebView2EnvironmentOptions* environmentOptions, ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler* environment_created_handler);
 
 typedef struct webview2_struct {
   HWND hwnd;
@@ -191,6 +197,7 @@ static HRESULT CreateWebView2Controller_Invoke(ICoreWebView2CreateCoreWebView2Co
 
   RECT bounds;
   GetClientRect(pwv2->hwnd, &bounds);
+  bounds.top += 20;
   webViewController->lpVtbl->put_Bounds(webViewController, bounds);
 
   webview->lpVtbl->AddScriptToExecuteOnDocumentCreated(webview, L"window.external={invoke:s=>window.chrome.webview.postMessage(s)}", &pwv2->add_script_on_document_created_handler);
@@ -235,7 +242,7 @@ static HRESULT CreateWebView2Environment_Invoke(ICoreWebView2CreateCoreWebView2E
 static HRESULT NoOpQueryInterface(void * This, REFIID riid, void **ppvObject) {
   return S_OK;
 }
-static ULONG NoOpAddRef(void * This) {
+static ULONG NoOpAddRef(void *This) {
   return 1;
 }
 static ULONG NoOpRelease(void * This) {
@@ -266,7 +273,7 @@ static void InitWebView2(webview2 *pwv2) {
 }
 
 WEBVIEW2_WIN32_API webview2 * CreateWebView2(HWND hwnd, const char *url, int debug) {
-  WCHAR dirname[MAX_PATH];
+  CHAR dirname[MAX_PATH];
   webview2 *pwv2 = NULL;
   if (CreateCoreWebView2EnvironmentFn != NULL) {
     pwv2 = (webview2 *)GlobalAlloc(GMEM_FIXED, sizeof(webview2));
@@ -278,7 +285,7 @@ WEBVIEW2_WIN32_API webview2 * CreateWebView2(HWND hwnd, const char *url, int deb
       pwv2->hwnd = hwnd;
       pwv2->url = url;
       pwv2->debug = debug;
-      PCWSTR userDataFolder = getUserData(dirname, MAX_PATH);
+      PCSTR userDataFolder = getUserData(dirname, MAX_PATH);
       HRESULT hr = CreateCoreWebView2EnvironmentFn(NULL, userDataFolder, NULL, &pwv2->env_created_handler);
       if (FAILED(hr)) {
         char buffer[256];
@@ -361,7 +368,7 @@ static int WebView2EnableVersion(GetWebView2BrowserVersionInfoFnType getVersionI
 }
 
 static int WebView2Enable() {
-  TCHAR modulePath[MAX_PATH + 22];
+  CHAR modulePath[MAX_PATH + 22];
   webview_print_log("Loading WebView2Loader");
   if (CreateCoreWebView2EnvironmentFn != NULL) {
     return 1;
@@ -374,7 +381,7 @@ static int WebView2Enable() {
   webview_print_log(modulePath);
   HMODULE hWebView2LoaderModule = LoadLibraryA(modulePath);
   if (hWebView2LoaderModule == NULL) {
-    webview_print_log("Unable to load, you could set " WEBVIEW2_WIN32_PATH);
+	  webview_print_log("Unable to load, you could set " WEBVIEW2_WIN32_PATH);
     return 0;
   }
   GetWebView2BrowserVersionInfoFnType getVersionInfoFn = (GetWebView2BrowserVersionInfoFnType)GetProcAddress(hWebView2LoaderModule, GET_AVAILABLE_COREWEBVIEW2_BROWSER_VERSION_FN_NAME);
