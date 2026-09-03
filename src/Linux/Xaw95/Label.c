@@ -89,7 +89,7 @@ int abs();
 #define offset(field) XtOffsetOf(LabelRec, field)
 static XtResource resources[] = {
     {XtNbackground, XtCBackground, XtRPixel, sizeof(Pixel),
-		offset(core.background_pixel), XtRString, XtDefaultBackground},
+		offset(core.background_pixel), XtRString, "Grey75"},
     {XtNforeground, XtCForeground, XtRPixel, sizeof(Pixel),
 	offset(label.foreground), XtRString, XtDefaultForeground},
     {XtNfont,  XtCFont, XtRFontStruct, sizeof(XFontStruct *),

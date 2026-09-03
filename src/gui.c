@@ -2564,6 +2564,36 @@ void verify_field(__GUI_FIELD__) {
 	//	XtSetValues(ui->statusLine, wargs, 1);
 }
 
+Widget Xt_field(Widget window, Widget alignto, char *area, float x, float y, float width,
+	ui_field_type kind, gui_info *ui) {
+	Widget text = XtVaCreateManagedWidget("sans-serif", textfieldWidgetClass, window,
+		XtNwidth, width,
+		XtNstring, area,
+		XtNborder, 0,
+		XtNinsertPosition, 0,
+		XtNdisplayCaret, False,
+		XtNallowSelection, True,
+		XtNresizable, True,
+		XtNeditable, True,
+		XtNecho, (kind == field_secret ? False : True),
+		XtNborderColor, 0xDAA520,
+		XtNx, x,
+		XtNy, y,
+		XtNheight, 30,
+		XtNleft, XawChainLeft,
+		XtNright, XawRubber,
+		XtNtop, XawChainTop,
+		XtNbottom, XawRubber,
+		XtNfromVert, alignto,
+		NULL);
+
+	XtAddCallback(text, XtNfocusCallback, gain_ebitable_field, NULL);
+	XtAddCallback(text, XtNgainPrimaryCallback, gain_ebitable_field, NULL);
+	XtAddCallback(text, XtNlosingFocusCallback, lose_ebitable_field, NULL);
+	XtAddCallback(text, XtNlosePrimaryCallback, lose_ebitable_field, NULL);
+	return text;
+}
+
 Widget Xt_text_field(gui_info *gui, ui_field_type kind, char *label, char *field,
 	float x, float y, float width, uintptr_t tag) {
 	Widget text;
@@ -2632,7 +2662,7 @@ int gui_form(gui_info *ui, const char *title, Form *fill, int numFields, ui_form
 		&argc, argv, fallback, NULL, 0);
 	XtResizeWidget(ui->topLevel, ui->width, ui->height, 0);
 
-	Widget text = NULL, form = (void *)XtCreateManagedWidget("form", formWidgetClass, ui->topLevel, NULL, 0);
+	Widget text = NULL, form = XtCreateManagedWidget("form", formWidgetClass, ui->topLevel, NULL, 0);
 	ui->font = XLoadQueryFont(XtDisplayOfObject(form), "lucidasans-8");
 	ui->font_button = XLoadQueryFont(XtDisplayOfObject(form), "lucidasans-bold-8");
 	for (i = 0; i < numFields; i++) {
@@ -3328,8 +3358,8 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 	if (ui->buf)
 		ui->gc = XCreateGC(ui->dpy, ui->win, 0, 0);
 
-	XSelectInput(ui->dpy, ui->win,
-		ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
+	XSelectInput(ui->dpy, ui->win, ExposureMask | KeyPressMask | KeyReleaseMask
+		| ButtonPressMask | ButtonReleaseMask | PointerMotionMask | StructureNotifyMask);
 	ui->wmDeleteMessage = XInternAtom(ui->dpy, "WM_DELETE_WINDOW", False);
 	XSetWMProtocols(ui->dpy, ui->win, &ui->wmDeleteMessage, 1);
 
@@ -3362,247 +3392,6 @@ int gui_window(gui_info *ui, const char *title, int width, int height, int buffe
 }
 
 #include "webview-x11.c"
-static char webview_hishory[10] = {0};
-
-void *get_info_app_data(void) {
-	return main_gui_info->app->app_data;
-}
-
-ui_wnd_t get_info_app_wnd(void) {
-	return main_gui_info->app->wnd;
-}
-
-static XtActionsRec web_actions[] = {
-	{"page_down", page_down},
-	{"page_up", page_up},
-	{"scroll_down", scroll_down},
-	{"scroll_up", scroll_up},
-	{"scroll_left", scroll_left},
-	{"scroll_right", scroll_right},
-	{"quit", quit},
-};
-
-int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height, bool showtoolbar) {
-	int argc = 0;
-	char **argv = NULL;
-	Widget toolcmd, tooltip = NULL;
-	Pixel color;
-	char b[1024], *p;
-	int i;
-
-	p = getenv("HOME");
-	if (!p) p = "/tmp";
-	sprintf(b, "%s/.webview", p);
-	mkdir(b, 0700);
-	strcat(b, "/cache");
-	mkdir(b, 0700);
-
-	if (getenv("PIXPATH") == NULL) {
-		sprintf(b, "PIXPATH=%s", DEFAULT_DATAPATH);
-		putenv(b);
-	}
-
-	ui->width = width;
-	ui->height = height;
-	ui->app->name = title;
-	ui->topLevel = XtVaAppInitialize(&ui->app_con, "webview",
-		NULL, 0,
-		&argc, argv,
-		fallback,
-		XtNbackground, 0x808080,
-		XtNbeNiceToColormap, False,
-		NULL);
-
-	XtAppAddActions(ui->app_con, web_actions, XtNumber(web_actions));
-	XtResizeWidget(ui->topLevel, ui->width, ui->height, 0);
-	if (showtoolbar)
-		tooltip = XtVaCreatePopupShell("tooltip", mwTooltipWidgetClass, ui->topLevel, NULL);
-	else
-		MwInitFormat(XtDisplayOfObject(ui->topLevel));
-
-	MwHighlightInit(ui->topLevel);
-	ui->app->code = showtoolbar;
-	ui->wnd = XtVaCreateManagedWidget("topbox",
-		mwRudegridWidgetClass, ui->topLevel,
-		XtNyLayout, "30 0 0 100% 30",
-		XtNborderWidth, 0,
-		XtNbeNiceToColormap, False,
-		NULL);
-
-	Widget statbar = XtVaCreateManagedWidget("statbar",
-		mwRudegridWidgetClass, ui->wnd,
-		XtNbackground, 0x808080,
-		XtNgridy, 4,
-		XtNxLayout, "0 100%",
-		XtNyLayout, "0 100% 4",
-		NULL);
-
-	ui->statusLine  = XtVaCreateManagedWidget("",
-		labelWidgetClass, statbar,
-		XtNshadowWidth, 0,
-		XtNgridx, 1,
-		XtNgridy, 1,
-		XtNjustify, XtJustifyLeft,
-		NULL);
-
-	XtVaGetValues(ui->statusLine, XtNbackground, &color, NULL);
-	if (showtoolbar) {
-		Widget navbar = XtVaCreateManagedWidget("navbar",
-			mwRudegridWidgetClass, ui->wnd,
-			XtNgridy, 0,
-			XtNxLayout, "0 100%",
-			NULL);
-
-		Widget navframe = XtVaCreateManagedWidget("navframe",
-			mwFrameWidgetClass, navbar,
-			XtNgridx, 1,
-			NULL);
-
-		Widget navbox = XtVaCreateManagedWidget("navbox",
-			boxWidgetClass, navframe,
-			XtNvSpace, 0,
-			XtNhSpace, 0,
-			NULL);
-
-		toolcmd = add_command(navbox, cb_back, ui, "back.xpm");
-		MwTooltipAdd(tooltip, toolcmd, _("Back"));
-
-		toolcmd = add_command(navbox, cb_forward, ui, "forward.xpm");
-		MwTooltipAdd(tooltip, toolcmd, _("Forward"));
-
-		toolcmd = add_command(navbox, cb_reload, ui, "reload.xpm");
-		MwTooltipAdd(tooltip, toolcmd, _("Reload"));
-
-		toolcmd = add_command(navbox, cb_cancel, ui, "cancel.xpm");
-		MwTooltipAdd(tooltip, toolcmd, _("Cancel"));
-
-		toolcmd = add_command(navbox, cb_home, ui, "home.xpm");
-		MwTooltipAdd(tooltip, toolcmd, _("Home"));
-
-		toolcmd = add_command(navbox, cb_open, ui, "fld_open.xpm");
-		MwTooltipAdd(tooltip, toolcmd, _("Open"));
-
-		toolcmd = add_command(navbox, cb_save, ui, "save.xpm");
-		MwTooltipAdd(tooltip, toolcmd, _("Save"));
-
-		int numtools = 7;
-		XtVaGetValues(navbox, XtNbackground, &color, NULL);
-		Widget persbar = XtVaCreateManagedWidget("persbar",
-			mwRudegridWidgetClass, navbox,
-			XtNbackground, color,
-			XtNresizable, True,
-			XtNwidth, (ui->width - (33 * numtools)),
-			XtNheight, 27,
-			XtNborder, 0,
-			XtNborderWidth, 0,
-			XtNxLayout, "0 100%", NULL);
-
-		Widget persframe = XtVaCreateManagedWidget("persframe",
-			mwFrameWidgetClass, persbar,
-			XtNgridx, 1,
-			NULL);
-
-		Widget loc_text = XtVaCreateManagedWidget("loc_text",
-			mwComboWidgetClass, persframe,
-			XtNresizable, True,
-			XtNgridx, 3,
-			XtNgridy, 1,
-			NULL);
-
-		ui->app->app_array = (void **)webview_hishory;
-		char **history = (char **)ui->app->app_array;
-		for (i = 0; i < 10; i++) {
-			history[i] = MwStrdup("");
-		}
-
-		XtVaSetValues(loc_text,
-			XtNcomboData, history,
-			XtNcomboNData, 10,
-			NULL);
-
-		XtAddCallback(loc_text, XtNtextCallback, cb_loc, ui);
-		XtAddCallback(loc_text, XtNlistCallback, cb_loc, ui);
-		ui->user_data = (void *)loc_text;
-	}
-
-	Widget viewport = XtVaCreateManagedWidget("viewport",
-		mwRudegridWidgetClass, ui->wnd,
-		XtNbackground, color,
-		XtNgridy, 3,
-		XtNxLayout, "50% 100 50% 17 17",
-		NULL);
-
-	ui->app->wnd = XtVaCreateManagedWidget("html",
-		mwHtmlWidgetClass, viewport,
-		XtNtopCol, -10,
-		XtNstatus, ui->statusLine,
-		XtNgridWidth, 4,
-		XtNbackground, 0xffffff,
-		XtNborderWidth, 0,
-		XtNdelay, 10,
-		NULL);
-	XtAddCallback(ui->app->wnd, XtNcallback, cb_click, ui);
-	XtAddCallback(ui->app->wnd, XtNchangeUrl, cb_url, ui);
-	XtVaSetValues(ui->app->wnd, XtNurl, url, NULL);
-
-	ui->app->app_data = (void *)XtVaCreateManagedWidget("vscroll",
-		scrollbarWidgetClass, viewport,
-		XtNgridx, 4,
-		XtNorientation, XtorientVertical,
-		NULL);
-
-	main_gui_info->app->wnd = ui->app->wnd;
-	main_gui_info->app->app_data = ui->app->app_data;
-	XtAddCallback((Widget)ui->app->app_data, XtNjumpProc, cb_vscroll_jump, ui);
-	XtAddCallback((Widget)ui->app->app_data, XtNscrollProc, cb_vscroll_scroll, ui);
-
-	XtVaSetValues(ui->statusLine, XtNbackground, color, NULL);
-	XtVaSetValues(statbar, XtNbackground, color, NULL);
-	ui->app->gui = ui;
-	return 1;
-}
-
-void gui_webactive(gui_info ui) {
-	XtAppContext context = XtWidgetToApplicationContext((Widget)ui.topLevel);
-	XtRealizeWidget(ui.topLevel);
-
-	if (!ui.icon_set) {
-		ui.icon_set = 1;
-		MwSetIcon(ui.topLevel, icon_32x32);
-	}
-
-	ui.dpy = XtDisplay(ui.topLevel);
-	ui.win = XtWindow(ui.topLevel);
-	Atom wm_protocols = XInternAtom(ui.dpy,
-		"WM_PROTOCOLS", False);
-	ui.wmDeleteMessage = XInternAtom(ui.dpy,
-		"WM_DELETE_WINDOW", False);
-	XtOverrideTranslations(ui.topLevel,
-		XtParseTranslationTable(
-			"<Message>WM_PROTOCOLS: quit()"));
-	XSetWMProtocols(ui.dpy, ui.win, &ui.wmDeleteMessage, 1);
-	XStoreName(ui.dpy, ui.win, ui.app->name);
-
-	for (;;) {
-		XtAppNextEvent(context, &ui.xev);
-		XtDispatchEvent(&ui.xev);
-		if (ui.xev.xclient.type == ClientMessage && ui.xev.xclient.data.l[0] == ui.wmDeleteMessage)
-			break;
-	}
-	XtUnrealizeWidget(ui.topLevel);
-}
-
-void gui_webdestroy(gui_info ui) {
-	XtDestroyApplicationContext(ui.app_con);
-	if (ui.app->code) {
-		int i;
-		char **history = (char **)ui.app->app_array;
-		for (i = 0; i < 10; i++)
-			free(history[i]);
-
-		fwfree(ui.forwhist);
-	}
-}
 
 FORCEINLINE void gui_close(gui_info *ui) {
 	gui_free(ui);
@@ -3673,8 +3462,15 @@ int64_t gui_time(void) {
 }
 #endif
 
-#if defined(__APPLE__) || defined(_WIN32)
-FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, int width, int height, bool showtoolbar) {
+FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url,
+	int width, int height, bool showtoolbar) {
+#if !defined(__APPLE__) || !defined(_WIN32)
+	if (tls_init() != 0) {
+		webview_debug("tls_init failed");
+		return 0;
+	}
+#endif
+
 	ui->web->url = url;
 	ui->web->title = title;
 	ui->web->width = width;
@@ -3702,7 +3498,7 @@ FORCEINLINE int gui_webview(gui_info *ui, const char *title, const char *url, in
 }
 
 FORCEINLINE void gui_webactive(gui_info ui) {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || !defined(_WIN32)
 	webview_loop(ui.web, 1);
 #else
 	ui.is_webview = 1;
@@ -3715,7 +3511,6 @@ FORCEINLINE void gui_webactive(gui_info ui) {
 FORCEINLINE void gui_webdestroy(gui_info ui) {
 	webview_exit(ui.web);
 }
-#endif
 
 WEBVIEW_API int webview_run(const char *title, const char *url, int width, int height) {
 	gui_info ui = {0};
@@ -3726,12 +3521,14 @@ WEBVIEW_API int webview_run(const char *title, const char *url, int width, int h
 }
 
 WEBVIEW_API void webview_debug(const char *format, ...) {
+#ifdef USE_DEBUG
 	char buf[4096];
 	va_list ap;
 	va_start(ap, format);
 	vsnprintf(buf, sizeof(buf), format, ap);
 	webview_print_log(buf);
 	va_end(ap);
+#endif
 }
 
 static int webview_js_encode(const char *s, char *esc, size_t n) {

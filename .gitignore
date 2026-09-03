@@ -64,3 +64,4 @@ cgi_test.cgi
 test.cgi.cmd
 .DS_Store
 test_http_auth.test_file.txt
+cert.pem

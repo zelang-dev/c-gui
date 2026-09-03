@@ -2,7 +2,6 @@
 #define __GUI_INTERNAL__
 
 #include <gui.h>
-void *get_info_app_data(void);
-ui_wnd_t get_info_app_wnd(void);
+#include <tls.h>
 
 #endif /* __GUI_INTERNAL__ */

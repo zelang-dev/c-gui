@@ -30,6 +30,7 @@ typedef struct Buttons_s {
 	int ID;
 } Button;
 
+typedef struct gui_info_s gui_info;
 #if defined(__APPLE__)
 #define USE_COCOA 1
 #undef in
@@ -169,15 +170,18 @@ typedef struct ButtonW {
 #include <sys/stat.h>
 #include <sys/types.h>
 
+typedef struct hist hist_t;
 struct webview_priv {
-	Widget *window;
-	Widget *scroller;
-	Widget *webview;
-	Widget *inspector_window;
+	Widget window;
+	Widget scroller;
+	Widget webview;
+	Widget inspector_window;
 	void **queue;
 	int ready;
 	int js_busy;
 	int should_exit;
+	gui_info *gui;
+	hist_t *backhist, *forwhist;
 };
 #endif
 
@@ -424,7 +428,6 @@ typedef Widget ui_form_t;
 typedef String ui_str_t;
 /* Platform bool type */
 typedef bool ui_bool;
-typedef struct hist hist_t;
 #define ui_field_str(value, field)		ui_str_t value = TextFieldGetString(field)
 #endif
 
@@ -459,7 +462,6 @@ typedef struct Forms_s {
 typedef Button ui_button[MAX_MSGBUTTONS];
 typedef Form ui_field;
 
-typedef struct gui_info_s gui_info;
 typedef struct {
 	/* `Application` main Window handle */
 	ui_wnd_t wnd;
@@ -536,8 +538,7 @@ typedef struct {
 } menu_bar_t;
 
 typedef struct webview webview_t;
-typedef void (*webview_external_invoke_cb_t)(webview_t *w,
-	const char *arg);
+typedef void (*webview_external_invoke_cb_t)(webview_t *w, const char *arg);
 struct webview {
 	const char *url;
 	const char *title;
@@ -570,9 +571,7 @@ struct gui_info_s {
 	/* For passing data to custom `Window` handler routine */
 	void *user_data;
 	ui_t app[1];
-#if defined(_WIN32) || defined(__APPLE__)
 	webview_t web[1];
-#endif
 #if defined(_WIN32)
 	BOOL is_webview;
 	WNDCLASSEX wc;
@@ -601,7 +600,6 @@ struct gui_info_s {
 	GC gc;
 	XImage *img;
 	XFontStruct *font_button;
-	hist_t *backhist, *forwhist;
 #endif
 };
 

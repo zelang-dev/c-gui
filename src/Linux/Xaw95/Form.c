@@ -63,7 +63,7 @@ static int default_value = -99999;
 static XtResource resources[] = {
     {XtNbackground, XtCBackground, XtRPixel, sizeof(Pixel),
         XtOffsetOf(FormRec, core.background_pixel), XtRString,
-	XtDefaultBackground},
+	"Grey75"},
     {XtNdefaultDistance, XtCThickness, XtRInt, sizeof(int),
 	Offset(default_spacing), XtRImmediate, (XtPointer)4}
 };

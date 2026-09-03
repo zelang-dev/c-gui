@@ -22,6 +22,9 @@
 #ifndef __HTTP_H__
 #define __HTTP_H__
 
+#include <Linux/tls.h>
+extern void webview_debug(const char *format, ...);
+
 #ifndef __HTTP_C__
 #define PUBEXT_HTTP extern
 #else

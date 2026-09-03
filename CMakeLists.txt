@@ -122,6 +122,15 @@ else()
 		target_link_libraries(${PROJECT_NAME}
 			${WebView2_LIB} gdi32 comctl32 advapi32 ole32 shell32 shlwapi user32 version)
 	else()
+		find_package(opentls QUIET)
+		if(NOT opentls_FOUND)
+			FetchContent_Declare(opentls
+				URL https://github.com/zelang-dev/opentls/archive/refs/heads/main.zip
+				URL_MD5 8e63e10a8a4880b911c9fde9a6fab2a9
+			)
+			FetchContent_MakeAvailable(opentls)
+		endif()
+
 		find_package(X11 REQUIRED COMPONENTS Xmu Xt)
 		if(BUILD_NATIVE_XAW)
 			find_library(X11_Xaw_LIB Xaw)
@@ -151,6 +160,9 @@ else()
 			PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 			PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
+		target_include_directories(${PROJECT_NAME} PRIVATE $<BUILD_INTERFACE:${OPENSSL_INCLUDE_DIR}
+			$<INSTALL_INTERFACE:${OPENSSL_INCLUDE_DIR})
+
 		target_include_directories(mowitz
 			PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 			PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
@@ -162,14 +174,16 @@ else()
 				PUBLIC DEFAULT_PIXPATH="${CMAKE_INSTALL_FULL_DATAROOTDIR}/pixmaps"
 				PUBLIC NATIVE_XAW=1)
 			target_link_libraries(${PROJECT_NAME}
-				mowitz Xaw X11::Xmu X11::Xt Xpm X11::X11 OpenGL::GL OpenGL::GLU)
+				mowitz Xaw X11::Xmu X11::Xt Xpm X11::X11 OpenGL::GL OpenGL::GLU
+					${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} opentls crypto dl m)
 		else()
 			target_compile_definitions(${PROJECT_NAME}
 				PUBLIC X11_WINDOW_ICON="${CMAKE_SOURCE_DIR}/resources/icon_32x32.xpm"
 				PUBLIC MOWITZ_DATA="${CMAKE_INSTALL_FULL_DATAROOTDIR}"
 				PUBLIC DEFAULT_PIXPATH="${CMAKE_INSTALL_FULL_DATAROOTDIR}/pixmaps")
 			target_link_libraries(${PROJECT_NAME}
-				mowitz Xaw95 X11::Xmu X11::Xt Xpm X11::X11 OpenGL::GL OpenGL::GLU)
+				mowitz Xaw95 X11::Xmu X11::Xt Xpm X11::X11 OpenGL::GL OpenGL::GLU
+					${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} opentls crypto dl m)
 		endif(BUILD_NATIVE_XAW)
 		if(NOT EXISTS "${BUILD_DIR}/share")
 			file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Linux/share DESTINATION ${BUILD_DIR})
