@@ -131,6 +131,7 @@ else()
 			FetchContent_MakeAvailable(opentls)
 		endif()
 
+		find_package(TIFF REQUIRED)
 		find_package(X11 REQUIRED COMPONENTS Xmu Xt)
 		if(BUILD_NATIVE_XAW)
 			find_library(X11_Xaw_LIB Xaw)
@@ -163,6 +164,9 @@ else()
 		target_include_directories(${PROJECT_NAME} PRIVATE $<BUILD_INTERFACE:${OPENSSL_INCLUDE_DIR}
 			$<INSTALL_INTERFACE:${OPENSSL_INCLUDE_DIR})
 
+		target_include_directories(${PROJECT_NAME} PRIVATE $<BUILD_INTERFACE:${TIFF_INCLUDE_DIRS}
+			$<INSTALL_INTERFACE:${TIFF_INCLUDE_DIRS})
+
 		target_include_directories(mowitz
 			PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 			PUBLIC $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
@@ -175,7 +179,7 @@ else()
 				PUBLIC NATIVE_XAW=1)
 			target_link_libraries(${PROJECT_NAME}
 				mowitz Xaw X11::Xmu X11::Xt Xpm X11::X11 OpenGL::GL OpenGL::GLU
-					${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} opentls crypto dl m)
+					${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} opentls crypto dl m TIFF::TIFF)
 		else()
 			target_compile_definitions(${PROJECT_NAME}
 				PUBLIC X11_WINDOW_ICON="${CMAKE_SOURCE_DIR}/resources/icon_32x32.xpm"
@@ -183,7 +187,7 @@ else()
 				PUBLIC DEFAULT_PIXPATH="${CMAKE_INSTALL_FULL_DATAROOTDIR}/pixmaps")
 			target_link_libraries(${PROJECT_NAME}
 				mowitz Xaw95 X11::Xmu X11::Xt Xpm X11::X11 OpenGL::GL OpenGL::GLU
-					${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} opentls crypto dl m)
+					${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} opentls crypto dl m TIFF::TIFF)
 		endif(BUILD_NATIVE_XAW)
 		if(NOT EXISTS "${BUILD_DIR}/share")
 			file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Linux/share DESTINATION ${BUILD_DIR})

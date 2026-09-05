@@ -1,6 +1,9 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
+#define GET_PIXEL_IMAGE(i,x,y) \
+        ((i)->_image[(y)*(i)->width+(x)])
+
 #define GET_PIXEL(i,x,y) \
         ((i)->pixels[(y)*(i)->width+(x)])
 #define PUT_PIXEL(i,x,y,p) \
@@ -12,8 +15,9 @@ typedef struct pixel {
 
 typedef struct image {
         int width, height, npixels;
-        pixel *pixels;
-        struct image *next;
+		pixel *pixels;
+		struct image *next;
+		unsigned char *_image;
 } image;
 
 void img_free(image *);

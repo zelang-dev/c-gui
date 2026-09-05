@@ -704,21 +704,28 @@ static void draw_pic(MwHtmlWidget hw, Drawable d, image *img, int x, int y) {
 	width = img->width;
 	height = img->height;
 	depth = hw->core.depth;
-	im_out = XCreateImage(dpy, visual, depth, format, offset, data,
-		width, height, bitmap_pad, bytes_per_line);
-	im_out->data = MwMalloc(im_out->bytes_per_line * im_out->height);
-	for (i = 0; i < height; i++) {
-		for (j = 0; j < width; j++) {
-			p = GET_PIXEL(img, j, i);
-			color.red = 257 * p.r;
-			color.green = 257 * p.g;
-			color.blue = 257 * p.b;
-			MwAllocColor(dpy, None, &color);
-			XPutPixel(im_out, j, i, color.pixel);
+	if (img->_image) {
+		im_out = XCreateImage(dpy, visual, depth, format, offset, img->_image,
+			width, height, bitmap_pad, bytes_per_line);
+		XPutImage(dpy, d, gc, im_out, 0, 0, x, y, img->width, img->height);
+		im_out->data = NULL;
+	} else {
+		im_out = XCreateImage(dpy, visual, depth, format, offset, data,
+			width, height, bitmap_pad, bytes_per_line);
+		im_out->data = MwMalloc(im_out->bytes_per_line * im_out->height);
+		for (i = 0; i < height; i++) {
+			for (j = 0; j < width; j++) {
+				p = GET_PIXEL(img, j, i);
+				color.red = 257 * p.r;
+				color.green = 257 * p.g;
+				color.blue = 257 * p.b;
+				MwAllocColor(dpy, None, &color);
+				XPutPixel(im_out, j, i, color.pixel);
+			}
 		}
+		XPutImage(dpy, d, gc, im_out, 0, 0,
+			x, y, img->width, img->height);
 	}
-	XPutImage(dpy, d, gc, im_out, 0, 0,
-		x, y, img->width, img->height);
 	XDestroyImage(im_out);
 }
 

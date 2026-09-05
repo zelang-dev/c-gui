@@ -132,18 +132,20 @@ url_info *load_http(char *url) {
 	}
 
 	if (tls_config_set_ciphers(tls_config, "compat") != 0) {
-		webview_debug(" Error: %s\n", tls_config_error(tls_config));
+		fprintf(stderr, " Error: %s\n", tls_config_error(tls_config));
 		tls_config_free(tls_config);
 		tls_free(tls);
 		return NULL;
 	}
 
-	/* Temporary! set insecure connections allowed */
+/* Insecure connections automatically allowed in `DEBUG` builds*/
+#ifdef USE_DEBUG
 	tls_config_insecure_noverifycert(tls_config);
 	tls_config_insecure_noverifyname(tls_config);
+#endif
 
 	if (tls_configure(tls, tls_config) != 0) {
-		webview_debug(" Error: %s\n", tls_config_error(tls_config));
+		fprintf(stderr, " Error: %s\n", tls_config_error(tls_config));
 		tls_config_free(tls_config);
 		tls_free(tls);
 		return NULL;
@@ -161,7 +163,7 @@ Redirect:
 	snprintf(port, sizeof(port), "%d", po);
 	if (tls_connect(tls, http_server, port) != 0) {
 		alarm(0);	/* cancel scheduled alarm */
-		webview_debug(" Error: %s\n", tls_error(tls));
+		fprintf(stderr, " Error: %s\n", tls_error(tls));
 		tls_config_free(tls_config);
 		tls_free(tls);
 		return NULL;
@@ -186,7 +188,7 @@ Redirect:
 
 	/* send header */
 	if ((int)tls_write(tls, header, hlg) != hlg) {
-		webview_debug(" Error: %s\n", tls_error(tls));
+		fprintf(stderr, " Error: %s\n", tls_error(tls));
 		tls_config_free(tls_config);
 		tls_free(tls);
 		return NULL;

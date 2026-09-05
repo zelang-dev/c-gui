@@ -5,9 +5,21 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <math.h>
+#include <tiffio.h>	// TIFF reading
 #include <Linux/Mowitz/MwUtils.h>
 #include <Linux/Mowitz/http.h>
 #include <Linux/Mowitz/image.h>
+
+#define NANOSVG_ALL_COLOR_KEYWORDS	// Include full list of color keywords.
+#define NANOSVG_IMPLEMENTATION
+#include "nanosvg.h"	// SVG parsing
+
+#define NANOSVGRAST_IMPLEMENTATION
+#include "nanosvgrast.h"	// SVG rasterization
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"	// PNG/JPG/GIF/TGA/BMP/PIC/PNM/PSD/HDR reading
 
 static int lastc;
 
@@ -79,6 +91,11 @@ void img_free(image *i1)
 
 	/* this is the old non-cached thing */
 	MwFree(i1->pixels);
+	if (i1->_image) {
+		stbi_image_free(i1->_image);
+		i1->_image = NULL;
+	}
+
 	MwFree(i1);
 }
 
@@ -156,6 +173,7 @@ static image *alloc_pixels(FILE *fpi)
 	i1 = img_new(w*h);
 	i1->width = w;
 	i1->height = h;
+	i1->_image = NULL;
 	return i1;
 }
 
@@ -642,27 +660,104 @@ static pixel xpm_find(palette *colors, int ncolors, char *name)
 	return bg; /* no match found, return background */
 }
 
-static image *read_external(FILE *fpi, char *cmd)
-{
-	image *i1;
+// Function to read TIFF into RGBA buffer
+static unsigned char *read_tiff_rgba(const char *filename, uint32_t *width, uint32_t *height) {
+	TIFF *tif = TIFFOpen(filename, "r");
+	if (!tif) {
+		img_warn("Could not open TIFF file %s\n", filename);
+		return NULL;
+	}
+
+	TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, width);
+	TIFFGetField(tif, TIFFTAG_IMAGELENGTH, height);
+
+	size_t i, npixels = (*width) * (*height);
+	uint32_t *raster = (uint32_t *)_TIFFmalloc(npixels * sizeof(uint32_t));
+	if (!raster) {
+		img_warn("Memory allocation failed\n");
+		TIFFClose(tif);
+		return NULL;
+	}
+
+	if (!TIFFReadRGBAImage(tif, *width, *height, raster, 0)) {
+		img_warn("Could not read TIFF image\n");
+		_TIFFfree(raster);
+		TIFFClose(tif);
+		return NULL;
+	}
+
+	// Convert from uint32_t RGBA to unsigned char RGBA
+	unsigned char *img_data = (unsigned char *)malloc(npixels * 4);
+	if (!img_data) {
+		img_warn("Memory allocation failed\n");
+		_TIFFfree(raster);
+		TIFFClose(tif);
+		return NULL;
+	}
+
+	for (i = 0; i < npixels; i++) {
+		uint32_t pixel = raster[i];
+		img_data[i * 4 + 0] = TIFFGetR(pixel);
+		img_data[i * 4 + 1] = TIFFGetG(pixel);
+		img_data[i * 4 + 2] = TIFFGetB(pixel);
+		img_data[i * 4 + 3] = TIFFGetA(pixel);
+	}
+
+	_TIFFfree(raster);
+	TIFFClose(tif);
+	return img_data;
+}
+
+static image *read_stbi_or_svg_or_tiff(const char *filename) {
+	int i, len, x, y, channels_in_file;
+	unsigned *dp;
+	NSVGimage *shapes = NULL;
+	NSVGrasterizer *rast = NULL;
+	stbi_uc *data = NULL;
+
+	if ((data = stbi_load(filename, &x, &y, &channels_in_file, 4))) {
+		;
+	} else if ((shapes = nsvgParseFromFile(filename, "px", 96.0f))) {
+		x = (int)shapes->width;
+		y = (int)shapes->height;
+		rast = nsvgCreateRasterizer();
+		data = malloc(x * y * 4);
+		nsvgRasterize(rast, shapes, 0, 0, 1, data, x, y, x * 4);
+		nsvgDeleteRasterizer(rast);
+		nsvgDelete(shapes);
+	} else if (data = read_tiff_rgba(filename, &x, &y)) {
+		;
+	} else {
+		return NULL;
+	}
+
+	// rgba to bgra
+	for (i = 0, len = x * y, dp = (unsigned *)data;i < len;i++) {
+		dp[i] = dp[i] & 0xff00ff00
+			| ((dp[i] >> 16) & 0xFF)
+			| ((dp[i] << 16) & 0xFF0000);
+	}
+
+	image *i1 = img_new(0);
+	i1->width = x;
+	i1->height = y;
+	i1->_image = data;
+	return i1;
+}
+
+static image *read_internal(FILE *fpi) {
 	int c;
-	char b[4096];
 	FILE *fp = fopen("/tmp/fnord", "w");
 	if (fp == NULL) {
 		img_warn("can't write temp file");
 		return NULL;
 	}
-	while ((c = getc(fpi)) != EOF) putc(c, fp);
+
+	while ((c = getc(fpi)) != EOF)
+		putc(c, fp);
+
 	fclose(fp);
-	snprintf(b, sizeof b, cmd, "/tmp/fnord");
-	fp = popen(b, "r");
-	if (fp == NULL) {
-		img_warn("can't read temp file");
-		return NULL;
-	}
-	i1 = read_pnm(fp);
-	pclose(fp);
-	return i1;
+	return read_stbi_or_svg_or_tiff("/tmp/fnord");
 }
 
 /* this format is a bloody mess; someone ought to be shot */
@@ -874,32 +969,37 @@ static int write_xbm(image *i1, FILE *fpo)
 
 static image *read_jpeg(FILE *fpi)
 {
-	return read_external(fpi, "djpeg %s");
+	return read_internal(fpi);
 }
 
 static image *read_gif(FILE *fpi)
 {
-	return read_external(fpi, "giftopnm %s");
+	return read_internal(fpi);
 }
 
 static image *read_tif(FILE *fpi)
 {
-	return read_external(fpi, "tifftopnm %s");
+	return read_internal(fpi);
+}
+
+static image *read_svg(FILE *fpi)
+{
+	return read_internal(fpi);
 }
 
 static image *read_png(FILE *fpi)
 {
-	return read_external(fpi, "pngtopnm %s");
+	return read_internal(fpi);
 }
 
 static image *read_bmp(FILE *fpi)
 {
-	return read_external(fpi, "bmptoppm %s");
+	return read_internal(fpi);
 }
 
 static image *read_unknown(FILE *fpi)
 {
-	return read_external(fpi, "anytopnm %s");
+	return read_internal(fpi);
 }
 
 struct {
@@ -923,6 +1023,7 @@ struct {
 	{"TIFF", read_tif, NULL},
 	{"PNG", read_png, NULL},
 	{"BMP", read_bmp, NULL},
+	{"SVG", read_svg, NULL},
 	{NULL, NULL, NULL}
 };
 
